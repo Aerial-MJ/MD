@@ -110,3 +110,7 @@ var fn = function fn(num) {
 ```
 
 Babel就是做了这样的编译转换工作，来让我们不用考虑浏览器的兼容性问题，只要专心于代码的编写工作。
+
+## node消除缓存
+
+`npm cache clean --force`

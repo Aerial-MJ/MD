@@ -114,3 +114,13 @@ Babel就是做了这样的编译转换工作，来让我们不用考虑浏览器
 ## node消除缓存
 
 `npm cache clean --force`
+
+## 正则表达式
+
+**split**
+
+**match**
+
+**ndexof**
+
+**subString**

@@ -80,3 +80,48 @@ public class UserController {
 5. 返回响应：控制器方法可以返回各种类型的响应数据。可以使用对象作为方法的返回类型，并使用Spring Boot自动将其转换为JSON响应。可以使用`ResponseEntity`类来自定义响应状态码、响应头等。
 
 这只是在Spring Boot框架中编写REST API的基本示例，实际情况可能因具体的业务需求和设计而有所不同。建议参考Spring Boot和Spring MVC的官方文档以获取更详细的信息和示例代码。
+
+## @RequestMapping
+
+在Spring框架中，`@RequestMapping` 注解用于映射HTTP请求到特定的处理方法上。默认情况下，`@RequestMapping` 可以处理所有类型的HTTP方法，包括 GET、POST、PUT、DELETE等。不过，你可以通过指定 `method` 属性来限定使用特定的HTTP方法。
+
+例如：
+
+- 如果你想让一个方法只处理GET请求，可以这样写：
+
+  ```java
+  @RequestMapping(value = "/example", method = RequestMethod.GET)
+  public String handleGet() {
+      return "handleGet";
+  }
+  ```
+
+- 如果你想让一个方法只处理POST请求，可以这样写：
+
+  ```java
+  @RequestMapping(value = "/example", method = RequestMethod.POST)
+  public String handlePost() {
+      return "handlePost";
+  }
+  ```
+
+从Spring 4.3版本开始，为了简化配置和提高代码的可读性，Spring 引入了几个组合注解，它们分别是 `@GetMapping`, `@PostMapping`, `@PutMapping`, `@DeleteMapping` 等。这些注解分别是 `@RequestMapping` 的专门化，用于处理特定类型的HTTP方法：
+
+- `@GetMapping` 是用于处理GET请求的快捷方式
+- `@PostMapping` 是用于处理POST请求的快捷方式
+
+例如，使用 `@GetMapping` 和 `@PostMapping`：
+
+```java
+@GetMapping("/example")
+public String handleGet() {
+    return "handleGet";
+}
+
+@PostMapping("/example")
+public String handlePost() {
+    return "handlePost";
+}
+```
+
+因此，`@RequestMapping` 本身既可以用于处理GET请求，也可以用于处理POST请求，具体取决于你是否指定 `method` 属性或者使用了上述的组合注解。

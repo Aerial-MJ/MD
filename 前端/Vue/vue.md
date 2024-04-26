@@ -5,7 +5,7 @@
 `ref `跟` reactive` 都是响应系统的核心方法，作为整个系统的入口
 
 可以将 ref 看成 reactive 的一个变形版本，这是由于 reactive 内部采用 Proxy 来实现，而 Proxy 只接受对象作为入参，这才有了 ref 来解决值类型的数据响应，如果传入 ref 的是一个对象，内部也会调用 reactive 方法进行深层响应转换
-### 父组件向子组件传值
+## 父组件向子组件传值
 使用`defineProps`
 **子组件**
 
@@ -49,7 +49,48 @@ export default defineComponent({
 
 ```
 
-### 子组件向父组件传值
+在Vue 3 的组合式 API 中，`setup()` 函数是组件中响应式系统的起点。通过`setup()`函数，你可以访问到从父组件传递下来的属性（props），组件的上下文，以及定义响应式数据和方法。下面我将通过一个简单的例子来展示如何在`setup()`函数中使用`props`。
+
+我们将创建一个名为`UserProfile`的组件，它接收两个props：`firstName`和`lastName`，并且将显示一个完整的用户名。
+
+### UserProfile.vue
+```vue
+<template>
+  <div>
+    <h1>User Profile</h1>
+    <p>Full Name: {{ fullName }}</p>
+  </div>
+</template>
+
+<script>
+import { computed } from 'vue';
+
+export default {
+  props: {
+    firstName: String,
+    lastName: String
+  },
+  setup(props) {
+    // 使用计算属性来合成全名
+    const fullName = computed(() => {
+      return `${props.firstName} ${props.lastName}`;
+    });
+
+    // 返回所有在模板中需要的响应式数据
+    return { fullName };
+  }
+}
+</script>
+
+<style>
+/* 添加一些基础样式 */
+div {
+  font-family: Arial, sans-serif;
+}
+</style>
+```
+
+## 子组件向父组件传值
 
 使用emit方式`defineEmits`
 
@@ -108,8 +149,67 @@ export default defineComponent({
 </script>
 ```
 
+了解了，我们将使用Vue 3 的组合式 API 来重写上面的示例。在这个新的版本中，我们将继续使用 `ButtonCounter` 子组件来实现按钮点击功能，并通过 `emit` 向父组件传递事件。父组件将使用组合式 API 来管理状态和处理事件。
+
+### 子组件 (ButtonCounter.vue)
+```vue
+<template>
+  <button @click="handleClick">Click me!</button>
+</template>
+
+<script setup>
+import { defineEmits } from 'vue';
+
+// 定义可以触发的事件
+const emit = defineEmits(['increment']);
+
+function handleClick() {
+  // 触发 increment 事件
+  emit('increment');
+}
+</script>
+```
+
+这部分与之前的子组件代码相同，我们使用 `defineEmits` 来定义和触发事件。
+
+### 父组件
+下面的父组件使用组合式 API 来响应子组件的事件：
+
+```vue
+<template>
+  <div>
+    <h1>Count: {{ count }}</h1>
+    <button-counter @increment="incrementCount" />
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import ButtonCounter from './ButtonCounter.vue';
+
+// 使用 ref 创建一个响应式的计数器
+const count = ref(0);
+
+// 定义一个方法来增加计数
+function incrementCount() {
+  count.value++;
+}
+</script>
+```
+
+### 代码解释
+1. **组合式 API (`<script setup>`)**:
+   - 我们使用 `ref` 从 `vue` 引入，来创建响应式的数据属性 `count`。这将用于在模板中显示和更新计数值。
+   - `incrementCount` 方法更新 `count.value`，这个方法将作为事件处理函数，在子组件触发 `increment` 事件时调用。
+
+2. **模板**:
+   - 显示计数器的当前值。
+   - 将 `ButtonCounter` 组件引入，并通过 `@increment="incrementCount"` 监听 `increment` 事件。
+
+这个示例演示了如何在 Vue 3 中使用组合式 API 来处理父子组件间的通信，实现清晰和模块化的代码结构。使用组合式 API，你可以更灵活地组织代码，更方便地重用逻辑。
 
 ## vue中的ref()和reactive()
+
 `ref` :表层对象还是使用的是`defineProperty`的getter或者setter实现响应式，深层对象使用的是Proxy实现响应式。
 
 `ref`获取DOM

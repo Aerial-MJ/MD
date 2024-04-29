@@ -1,3 +1,104 @@
+# Python基础
+
+## python的循环
+
+Python 中的循环结构主要有两种：`for` 循环和 `while` 循环。这两种循环各有其适用场景和特点。下面是对这两种循环的基本介绍和一些例子。
+
+### 1. for 循环
+
+`for` 循环在Python中用于遍历任何序列的项，如列表、元组、字典、字符串等，或者任何可迭代对象。
+
+#### 基本语法
+
+```python
+for variable in sequence:
+    # 执行的代码块
+```
+
+#### 示例
+
+- 遍历列表：
+
+  ```python
+  fruits = ["apple", "banana", "cherry"]
+  for fruit in fruits:
+      print(fruit)
+  ```
+
+- 遍历字符串：
+
+  ```python
+  for char in "hello":
+      print(char)
+  ```
+
+- 使用 `range()` 函数：
+
+  ```python
+  for i in range(5):  # 从 0 到 4
+      print(i)
+  ```
+
+- 遍历字典：
+
+  ```python
+  person = {'name': 'John', 'age': 30}
+  for key in person:
+      print(key, person[key])
+  ```
+
+### 2. while 循环
+
+`while` 循环在Python中用于在满足某条件的情况下重复执行一个代码块。
+
+#### 基本语法
+
+```python
+while condition:
+    # 执行的代码块
+```
+
+#### 示例
+
+- 基本 `while` 循环：
+
+  ```python
+  count = 0
+  while count < 5:
+      print(count)
+      count += 1  # 重要：确保有一个使条件最终变为 False 的语句
+  ```
+
+### 控制语句
+
+在这两种类型的循环中，你可能会用到一些控制语句来修改循环的执行行为：
+
+- `break`：立即退出整个循环体。
+- `continue`：跳过当前循环的剩余部分，并开始下一次循环迭代。
+- `else`：只有在循环正常结束时（没有通过 `break` 语句退出循环时），才执行的代码块。
+
+#### 使用 break`和 continue
+
+```python
+for i in range(10):
+    if i == 3:
+        continue  # 跳过数字 3
+    if i == 8:
+        break     # 当 i 等于 8 时终止循环
+    print(i)
+```
+
+#### 循环的 else 子句
+
+```python
+for i in range(5):
+    print(i)
+else:
+    print("Done!")  # 在循环正常结束后执行（未通过 break 退出）
+```
+
+这些基本的循环结构和控制语句构成了Python编程中处理重复任务的核心。每种循环有其特定的应用场景，比如当你需要遍历一个集合的元素时，`for` 循环非常适用；而当你需要在某个条件不再为真时停止循环时，`while` 循环则更加合适。
+
 ## os.path.join
 
 `os.path.join()` 是 Python 中 `os.path` 模块提供的一个方法，用于连接路径字符串。
@@ -84,7 +185,7 @@ with open('output.txt', 'w') as file:
 
 以下是如何使用`Pillow`（也就是 PIL，Python Imaging Library 的更新版本）来读取和显示图像的步骤：
 
-**使用 `open()` 和 `show()` 显示图像**
+使用 `open()` 和 `show()` 显示图像
 
 这里是如何使用 Pillow 来读取和显示图像：
 
@@ -148,7 +249,9 @@ if cv2.waitKey(0) & 0xFF == ord('q'):
 
 这种用法确保从函数返回的结果只取低8位，这对于兼容性是很有帮助的。
 
-## 正则表达式换\\->/
+## 正则表达式
+
+### \\->/
 
 ```python
 import os
@@ -188,3 +291,158 @@ find_md_files_and_replace(directory_path)
 
 ```
 
+在Python中，使用正则表达式主要依赖于内置的 `re` 模块。这个模块提供了一系列功能，用于字符串搜索、匹配、替换等操作。下面我将向你展示如何创建和使用Python中的正则表达式，以及一些常用的功能。
+
+### 1. 导入 re 模块
+
+在使用正则表达式之前，需要首先导入Python的 `re` 模块：
+
+```python
+import re
+```
+
+### 2. 编译正则表达式
+
+虽然直接使用正则表达式的方法（如 `re.search()` 或 `re.match()`）时可以直接提供模式字符串，但为了效率和重用，通常先将正则表达式编译成一个正则表达式对象。这可以通过 `re.compile()` 完成：
+
+```python
+pattern = re.compile(r'\d+')  # 匹配一个或多个数字
+```
+
+### 3. 使用正则表达式
+
+编译后的正则表达式对象可以使用多种方法，比如：
+
+- `match()`：从字符串的开始处进行匹配检查。
+- `search()`：在整个字符串中搜索第一次出现的模式。
+- `findall()`：查找字符串中所有匹配的子串，并返回它们作为一个列表。
+- `finditer()`：查找字符串中所有匹配的子串，并返回一个迭代器。
+- `sub()`：替换字符串中的匹配项。
+
+#### 示例
+
+下面是一些基本用法的例子：
+
+```python
+import re
+
+# 编译正则表达式
+pattern = re.compile(r'\d+')
+
+# 在字符串中搜索数字
+match = pattern.search("Hello 1234 World")
+if match:
+    print("Found:", match.group())  # 输出第一个匹配的结果
+
+# 查找所有匹配的数字
+numbers = pattern.findall("Example with 123 numbers 456 and 789")
+print("Numbers found:", numbers)  # 输出所有匹配的结果
+
+# 替换字符串中的数字为 #
+replaced = pattern.sub("#", "Example with 123 numbers 456 and 789")
+print("Replaced string:", replaced)
+
+# 使用迭代器找到所有匹配项
+for m in pattern.finditer("Example with 123 numbers 456 and 789"):
+    print("Match at position:", m.start(), m.group())
+```
+
+### 4. 常见模式
+
+- `\d`：匹配任何十进制数字，等价于 [0-9]。
+- `\D`：匹配任何非数字字符。
+- `\w`：匹配任何字母数字字符，等价于 [a-zA-Z0-9_]。
+- `\W`：匹配任何非字母数字字符。
+- `\s`：匹配任何空白字符，包括空格、制表符、换页符等等。
+- `\S`：匹配任何非空白字符。
+- `.`：匹配除换行符以外的任何单个字符。
+
+这些基础概念和方法是使用Python正则表达式的基石，可以用于处理各种复杂的文本处理任务。
+
+## 删除不匹配文件
+
+这个脚本将比较两个文件夹内的文件名（不包括扩展名），删除那些没有匹配的文件。
+
+请确保在运行此脚本之前已经安装了Python，并具有操作文件和文件夹的权限。这个脚本使用了`os`模块来操作文件系统。
+
+```python
+import os
+
+def sync_folders(images_folder, xmls_folder):
+    # 获取两个文件夹中所有文件的名称（不包含扩展名）
+    images = {os.path.splitext(file)[0]: file for file in os.listdir(images_folder) if file.endswith('.jpg')}
+    xmls = {os.path.splitext(file)[0]: file for file in os.listdir(xmls_folder) if file.endswith('.xml')}
+
+    # 找出所有不匹配的图片文件
+    images_to_delete = set(images) - set(xmls)
+    # 找出所有不匹配的XML文件
+    xmls_to_delete = set(xmls) - set(images)
+
+    # 删除不匹配的图片文件
+    for img in images_to_delete:
+        os.remove(os.path.join(images_folder, images[img]))
+        print(f"Deleted image: {images[img]}")
+
+    # 删除不匹配的XML文件
+    for xml in xmls_to_delete:
+        os.remove(os.path.join(xmls_folder, xmls[xml]))
+        print(f"Deleted XML: {xmls[xml]}")
+
+# 设置文件夹路径
+images_folder = 'path/to/images_folder'  # 替换为你的图片文件夹路径
+xmls_folder = 'path/to/xmls_folder'  # 替换为你的XML文件夹路径
+
+# 调用函数
+sync_folders(images_folder, xmls_folder)
+```
+
+1. 将 `images_folder` 和 `xmls_folder` 变量的值替换为你实际图片文件夹和XML文件夹的路径。
+2. 确保图片文件的扩展名是 `.jpg`（你可以根据实际情况修改脚本中的文件扩展名）。
+3. 运行脚本。
+
+该脚本会删除任何没有在另一文件夹中找到匹配文件名（忽略扩展名）的文件。请在运行此脚本之前确保备份你的数据，以防意外删除重要文件。
+
+`os.path.splitext(file)[0]: file for file in os.listdir(images_folder) if file.endswith('.jpg') `
+
+这段代码使用了Python字典推导式来创建一个字典，其中包含了指定文件夹中特定文件类型（在这里是`.jpg`格式的图片）的文件名（不含扩展名）作为键，完整文件名作为值。下面是这段代码的详细解释：
+
+1. `os.listdir(images_folder)`: 这个函数调用会列出给定文件夹（`images_folder`）中的所有文件和目录名。这里返回的是一个字符串列表。
+
+2. `file for file in os.listdir(images_folder) if file.endswith('.jpg')`: 这部分是一个列表推导式，它遍历`os.listdir(images_folder)`生成的列表。对于每一个元素（即文件名），检查文件名是否以`.jpg`结尾。如果是，这个文件名会被包含在生成的列表中。这样可以过滤出所有`.jpg`格式的图片文件。
+
+3. `os.path.splitext(file)[0]: file`: 这部分是字典推导式的核心。对于上一步过滤出的每一个`.jpg`文件名`file`，`os.path.splitext(file)`会将文件名分割成两部分：文件名（不含扩展名）和扩展名。`os.path.splitext(file)[0]`就是获取文件名不包含扩展名的部分。这部分作为字典的键，而完整的文件名`file`（包括扩展名）作为字典的值。
+
+整个字典推导式构建了一个字典，其中键是文件名不包括扩展名的部分，值是包含扩展名的完整文件名。这样的结构便于之后的代码查找和比较文件名（不考虑扩展名），以决定是否需要删除文件。
+
+```python
+my_dict = {'a': 1, 'b': 2, 'c': 3}
+print(my_dict)  # 输出 {'a': 1, 'b': 2, 'c': 3}
+
+set(my_dict)
+{'a', 'b', 'c'}
+```
+
+在Python中，`file for file in os.listdir(images_folder) if file.endswith('.jpg')` 这段代码是一个列表推导式（list comprehension），用于从指定文件夹中筛选出所有以 `.jpg` 结尾的文件名。这里详细解释每个部分的意义：
+
+1. `os.listdir(images_folder)`：这是 `os` 模块的一个函数，用于列出给定目录（`images_folder`）下的所有文件和子目录的名字，结果是一个包含字符串的列表。
+
+2. `for file in os.listdir(images_folder)`：这是一个循环，它遍历 `os.listdir(images_folder)` 返回的每一个元素，每个元素代表文件夹中的一个文件或目录名，这里的每个元素被赋值给变量 `file`。
+
+3. `if file.endswith('.jpg')`：这是一个条件语句，用于检查变量 `file`（代表一个文件名）是否以字符串 `.jpg` 结尾。这个方法返回布尔值（True 或 False），如果文件名以 `.jpg` 结尾则为 True，否则为 False。
+
+4. `file`：这部分是列表推导式的输出部分，如果 `file.endswith('.jpg')` 的结果为 True，`file` 的值就会被加入到最终生成的列表中。
+
+整体来说，这行代码的作用是生成一个新的列表，这个列表中包含了 `images_folder` 文件夹下所有以 `.jpg` 结尾的文件名。这是一个非常高效的方法来筛选特定类型的文件。
+
+如果你有一个文件夹 `images_folder`，里面包含了多个文件，其中一些是 JPG 图片，你可以使用这样的代码来找出所有的 JPG 文件：
+
+```python
+import os
+
+images_folder = '/path/to/your/folder'
+jpg_files = [file for file in os.listdir(images_folder) if file.endswith('.jpg')]
+
+print(jpg_files)
+```
+
+这段代码将打印出 `images_folder` 中所有以 `.jpg` 结尾的文件名的列表。如果文件夹路径或文件扩展名不同，你需要根据实际情况调整路径和扩展名。

@@ -121,6 +121,6 @@ Babel就是做了这样的编译转换工作，来让我们不用考虑浏览器
 
 **match**
 
-**ndexof**
+**indexof**
 
 **subString**

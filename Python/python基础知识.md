@@ -402,6 +402,10 @@ sync_folders(images_folder, xmls_folder)
 
 该脚本会删除任何没有在另一文件夹中找到匹配文件名（忽略扩展名）的文件。请在运行此脚本之前确保备份你的数据，以防意外删除重要文件。
 
+### 代码解释
+
+#### 1
+
 `os.path.splitext(file)[0]: file for file in os.listdir(images_folder) if file.endswith('.jpg') `
 
 这段代码使用了Python字典推导式来创建一个字典，其中包含了指定文件夹中特定文件类型（在这里是`.jpg`格式的图片）的文件名（不含扩展名）作为键，完整文件名作为值。下面是这段代码的详细解释：
@@ -421,6 +425,8 @@ print(my_dict)  # 输出 {'a': 1, 'b': 2, 'c': 3}
 set(my_dict)
 {'a', 'b', 'c'}
 ```
+
+#### 2
 
 在Python中，`file for file in os.listdir(images_folder) if file.endswith('.jpg')` 这段代码是一个列表推导式（list comprehension），用于从指定文件夹中筛选出所有以 `.jpg` 结尾的文件名。这里详细解释每个部分的意义：
 
@@ -446,3 +452,40 @@ print(jpg_files)
 ```
 
 这段代码将打印出 `images_folder` 中所有以 `.jpg` 结尾的文件名的列表。如果文件夹路径或文件扩展名不同，你需要根据实际情况调整路径和扩展名。
+
+## 将.xml中\<path\>标签去掉中文
+
+要批量修改文件夹内所有 XML 文件中的 `<path>` 标签内容，并去除路径中的特定中文字符（例如 "副本"），你可以使用 Python 的 xml.etree.ElementTree 模块来解析和修改 XML 文件，然后使用 os 和 shutil 模块来遍历文件和保存修改后的文件。下面是一个简单的 Python 脚本示例，展示了如何完成这一任务：
+
+```python
+import os
+import xml.etree.ElementTree as ET
+
+def remove_chinese_from_path(xml_folder):
+    for filename in os.listdir(xml_folder):
+        if filename.endswith('.xml'):
+            filepath = os.path.join(xml_folder, filename)
+            tree = ET.parse(filepath)
+            root = tree.getroot()
+
+            # 遍历所有的 path 元素
+            for path in root.iter('path'):
+                original_path = path.text
+                # 替换掉路径中的 '副本'
+                modified_path = original_path.replace(' - 副本', '')
+                path.text = modified_path
+
+            # 保存修改后的 XML 文件
+            tree.write(filepath, encoding='utf-8', xml_declaration=True)
+
+# 调用函数，指定 XML 文件所在的文件夹路径
+xml_folder_path = 'C:\\Your\\Folder\\Path'
+remove_chinese_from_path(xml_folder_path)
+```
+
+注意事项：
+1. 确保你的 Python 环境已经安装了 xml.etree.ElementTree 模块（通常 Python 自带此模块，无需额外安装）。
+2. 脚本中的 `xml_folder_path` 需要替换成你存放 XML 文件的实际文件夹路径。
+3. 本脚本仅针对每个 XML 文件中的 `<path>` 元素进行查找并替换指定的字符串（本例中是 "副本"）。如果你需要修改其他字符串，可以相应地修改 `replace` 函数的参数。
+
+在运行此脚本之前，请确保备份原始的 XML 文件以防万一，避免不可恢复的数据丢失。如果你的 XML 文件结构比较复杂或者有特殊的需求，你可能需要根据实际情况调整代码。

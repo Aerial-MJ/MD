@@ -332,3 +332,27 @@ return{
 对于基本类型数据（如字符串、数字、布尔值等），`ref` 会返回一个包装过的对象，该对象具有 `value` 属性用于获取和修改数据。这里使用的是 `defineProperty` 来实现响应式。
 
 对于对象类型的数据，`ref` 会对对象进行浅层包装，并使用 `Proxy` 来实现响应式。这意味着在访问和修改深层对象的属性时，会通过 `Proxy` 拦截器来实现响应式更新。**(ref.value->proxy)**
+
+## vue的compute属性
+
+```vue
+import { computed } from 'vue';
+
+export default {
+  setup() {
+    // 定义一些响应式数据
+    const a = ref(10);
+    const b = ref(20);
+
+    // 创建计算属性
+    const sum = computed(() => a.value + b.value);
+
+    return {
+      a,
+      b,
+      sum
+    };
+  }
+};
+
+```

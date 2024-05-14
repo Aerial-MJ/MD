@@ -161,3 +161,55 @@ console.log(text.match(pattern)); // 输出：['Hello']
 ### 总结
 
 `var regex = /pattern/flags;` 是一种创建正则表达式的方式，它通过直观的字面量语法使代码简洁而易于理解。使用这种方式可以方便地指定查找模式和行为标志，非常适合静态的正则表达式，这些表达式在代码编写时就已经确定，并且不需要基于运行时的数据动态生成。
+
+## splice
+
+`splice()` 是 JavaScript 中数组的一个方法，用于修改数组，它可以实现删除、插入和替换数组元素的功能。`splice()` 方法可以接受多个参数，下面是它的语法：
+
+```javascript
+array.splice(start[, deleteCount[, item1[, item2[, ...]]]])
+```
+
+- `start`: 必需，指定修改的起始位置（索引）。如果是负数，则从数组的末尾开始计数。
+- `deleteCount`: 可选，指定要删除的元素个数。如果省略，则删除从 `start` 位置到数组末尾的所有元素。
+- `item1`, `item2`, ...: 可选，要添加到数组的新元素。从 `start` 位置开始插入。
+
+### 删除元素
+
+如果只指定 `start` 参数，`splice()` 将从该位置开始删除数组中的所有元素（包括 `start` 位置的元素）。
+
+```javascript
+let fruits = ["Banana", "Orange", "Apple", "Mango"];
+fruits.splice(2); // 从索引 2 开始删除所有元素
+console.log(fruits); // ["Banana", "Orange"]
+```
+
+如果指定了 `start` 和 `deleteCount` 参数，则从 `start` 位置开始删除指定数量的元素。
+
+```javascript
+let fruits = ["Banana", "Orange", "Apple", "Mango"];
+fruits.splice(1, 2); // 从索引 1 开始删除 2 个元素
+console.log(fruits); // ["Banana", "Mango"]
+```
+
+### 插入元素
+
+除了删除元素外，`splice()` 还可以在指定位置插入新元素。你可以通过添加额外的参数来实现。
+
+```javascript
+let fruits = ["Banana", "Orange", "Apple", "Mango"];
+fruits.splice(2, 0, "Lemon", "Kiwi"); // 从索引 2 开始插入 "Lemon" 和 "Kiwi"
+console.log(fruits); // ["Banana", "Orange", "Lemon", "Kiwi", "Apple", "Mango"]
+```
+
+### 替换元素
+
+除了删除和插入元素外，`splice()` 还可以替换数组中的元素。
+
+```javascript
+let fruits = ["Banana", "Orange", "Apple", "Mango"];
+fruits.splice(2, 1, "Lemon", "Kiwi"); // 从索引 2 开始替换 1 个元素，替换成 "Lemon" 和 "Kiwi"
+console.log(fruits); // ["Banana", "Orange", "Lemon", "Kiwi", "Mango"]
+```
+
+总之，`splice()` 是一个非常有用的数组方法，它可以让你灵活地对数组进行修改、删除、插入和替换操作。

@@ -68,7 +68,57 @@ web服务器，包括nginx apache tomcat 这些
 
 ### **计算机系统结构---寻址方式**
 
+![image-20240519163750828](../Image/image-20240519163750828.png)
+
+**通用寄存器**
+
+- **AX，BX，CX，DX**称作为数据寄存器：
+
+AX (Accumulator)：累加寄存器，也称之为累加器；
+
+BX (Base)：基地址寄存器；
+
+CX (Count)：计数器寄存器；
+
+DX (Data)：数据寄存器；
+
+- **SP**和**BP**又称作为指针寄存器：
+
+SP (Stack Pointer)：堆栈指针寄存器；
+
+BP (Base Pointer)：基指针寄存器；
+
+- **SI**和**DI**又称作为变址寄存器：
+
+SI (Source Index)：源变址寄存器；
+
+DI (Destination Index)：目的变址寄存器；
+
+**控制寄存器：**
+
+IP (Instruction Pointer)：指令指针寄存器；
+
+FLAG：标志寄存器；
+
+**段寄存器：**
+
+CS (Code Segment)：代码段寄存器；
+
+DS (Data Segment)：数据段寄存器；
+
+SS (Stack Segment)：堆栈段寄存器；
+
+ES (Extra Segment)：附加段寄存器；
+
 ### **计算机系统结构---指令格式**
+
+**指令格式和指令长度**
+
+![image-20240519162501684](../Image/image-20240519162501684.png)
+
+**指令类型**
+
+![image-20240519162104327](../Image/image-20240519162104327.png)
 
 ### bert和rnn再复习一下
 

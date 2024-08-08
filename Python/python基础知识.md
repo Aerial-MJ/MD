@@ -77,7 +77,7 @@ while condition:
 - `continue`：跳过当前循环的剩余部分，并开始下一次循环迭代。
 - `else`：只有在循环正常结束时（没有通过 `break` 语句退出循环时），才执行的代码块。
 
-#### 使用 break`和 continue
+#### 使用 break和 continue
 
 ```python
 for i in range(10):

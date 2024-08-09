@@ -18,4 +18,4 @@ pip install numpy==1.22
 
 yolov5中pip install numpy==1.22默认安装的1.22.0，与其他包版本有冲突，建议直接运行pip install numpy==1.22.4
 
-![image](C:/Users/19409/Desktop/MD/Image/80824-20230509152011501-448118077.png)
+![image](../Image/80824-20230509152011501-448118077.png)

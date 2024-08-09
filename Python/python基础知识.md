@@ -493,6 +493,15 @@ sync_folders(images_folder, xmls_folder)
 
 该脚本会删除任何没有在另一文件夹中找到匹配文件名（忽略扩展名）的文件。请在运行此脚本之前确保备份你的数据，以防意外删除重要文件。
 
+```
+{key_expression: value_expression for item in iterable if condition}
+```
+
+- **`key_expression`**：字典键的表达式。
+- **`value_expression`**：字典值的表达式。
+- **`iterable`**：要迭代的可迭代对象（如列表、元组、字符串等）。
+- **`condition`**（可选）：一个条件表达式，用于过滤哪些元素将包含在字典中。
+
 ### 代码解释
 
 #### First Question

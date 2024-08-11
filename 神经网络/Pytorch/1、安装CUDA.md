@@ -25,7 +25,7 @@ cuDNN 其实就是 CUDA 的一个补丁而已，专为深度学习运算进行�
 
   [【一文解决】已安装CUDA与Pytorch但torch.cuda.is_available()为False_torch.cuda.is available返回false-CSDN博客](https://blog.csdn.net/qq_41112170/article/details/131191827)
 
-## Cuda版本的安装及下载
+## CUDA的API
 
 可以看到自己电脑支持的CUDA版本（支持的最高版本Driver Version）
 
@@ -40,8 +40,7 @@ CUDA有两种API，一个是驱动API（Driver Version），依赖NVIDIA驱动�
 运行API的依赖文件由CUDA Toolkit installer安装。
 ```
 
-安装完CUDA Toolkit之后，可以直接
-
+![image-20240811183443775](../../Image/image-20240811183443775.png)
 
 ## 直接安装pytorch对应的cuda
 
@@ -56,3 +55,6 @@ CUDA有两种API，一个是驱动API（Driver Version），依赖NVIDIA驱动�
 
 ![image-20240808203916505](C:/Users/19409/Desktop/MD/Image/image-20240808203916505.png)
 
+## 使用CUDA
+
+安装完CUDA Toolkit之后，可以直接进行使用

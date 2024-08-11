@@ -44,6 +44,8 @@ CUDA有两种API，一个是驱动API（Driver Version），依赖NVIDIA驱动�
 
 ## 直接安装pytorch对应的cuda
 
+##### 不需要[安装CUDA](https://so.csdn.net/so/search?q=安装CUDA&spm=1001.2101.3001.7020)，CUDNN ！！！安装官方显卡驱动就行
+
 在cmd里输入 [nvidia-smi](https://so.csdn.net/so/search?q=nvidia-smi&spm=1001.2101.3001.7020) 查看对应的 cuda 版本
 
 流程如下
@@ -53,8 +55,4 @@ CUDA有两种API，一个是驱动API（Driver Version），依赖NVIDIA驱动�
 3. 检查自己的`cuda`版本，我的是`cuda:12.0`
 4. 然后再`pytorch`上找到对应`cuda`版本的进行下载，`pip install`或者`conda install` 都可以
 
-![image-20240808203916505](C:/Users/19409/Desktop/MD/Image/image-20240808203916505.png)
-
-## 使用CUDA
-
-安装完CUDA Toolkit之后，可以直接进行使用
+![image-20240808203916505](../../Image/image-20240808203916505.png)

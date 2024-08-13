@@ -27,6 +27,8 @@ Tesseract的主要功能是识别图像中的文字，并将其转换成机器�
 8 =把图像当作一个单词
 9 =把图像当作一个圆圈中的一个词来对待
 10 =将图像作为单个字符处理
+
+cmd验证:tesseract.exe D:\dev\test.png D:\dev\out  -l eng --psm 7
 ```
 
 ```python

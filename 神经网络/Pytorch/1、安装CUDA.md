@@ -73,7 +73,7 @@ NVIDIA 驱动程序中的 CUDA 版本（通常称为 `Driver Version`）与 CUDA
 
 ### 3. **Driver Version 中 CUDA 版本的作用**
    - **确保兼容性**: 驱动程序中的 CUDA 版本（Driver Version）确保你的系统能够运行使用特定 CUDA 版本编译的代码。这意味着，无论你是使用 CUDA Toolkit 编译的代码，还是像 PyTorch 这样的深度学习框架，都会通过驱动程序中的 CUDA Driver API 与 GPU 交互。
-   - **与 CUDA Toolkit 协作**: 当你运行一个 CUDA 程序时，程序会通过 CUDA Toolkit 提供的运行时库与驱动程序通信。如果驱动程序中的 CUDA 版本太旧，可能无法支持最新的 CUDA Toolkit 中的新特性或优化。
+   - **与 CUDA Toolkit 协作**: 当你运行一个 CUDA 程序时，==程序会通过 CUDA Toolkit 提供的运行时库与驱动程序通信==。如果驱动程序中的 CUDA 版本太旧，可能无法支持最新的 CUDA Toolkit 中的新特性或优化。
 
 ### 4. **版本匹配的重要性**
    - **最低驱动版本要求**: 每个 CUDA Toolkit 版本都有一个最低的 NVIDIA 驱动版本要求。例如，CUDA 11.2 可能要求至少 460.32.03 版本的驱动程序。如果驱动程序版本过低，你将无法运行使用该 CUDA Toolkit 编译的代码。
@@ -86,7 +86,7 @@ NVIDIA 驱动程序中的 CUDA 版本主要负责与 GPU 硬件通信，是 CUDA
 
 因此，确保驱动程序版本满足所需的 CUDA Toolkit 版本要求对于顺利进行 GPU 加速计算非常重要。
 
-## CUDA Toolkit 和在 PyTorch 中使用 CUDA
+## CUDA Toolkit 和在 PyTorch 中的 CUDA
 
 安装 CUDA Toolkit 和在 PyTorch 中使用 CUDA 的确有些混淆。让我来为你解释一下它们的区别和各自的作用：
 
@@ -96,8 +96,8 @@ NVIDIA 驱动程序中的 CUDA 版本主要负责与 GPU 硬件通信，是 CUDA
    - **示例和文档**: CUDA Toolkit 通常附带示例代码和详细的开发文档，帮助开发者理解如何编写和优化 GPU 计算。
 
 ### 2. **PyTorch 和 CUDA 的关系**
-   - **内置支持**: PyTorch 在安装时可以选择带有 CUDA 支持的版本。这些版本会包含与特定 CUDA Toolkit 版本兼容的 CUDA 库，比如 cuBLAS 和 cuDNN。因此，即使你没有手动安装 CUDA Toolkit，PyTorch 依然可以通过内置的 CUDA 库来使用 GPU 加速。
-   - **驱动要求**: PyTorch 需要你安装与之兼容的 NVIDIA 驱动程序，但不需要完整的 CUDA Toolkit。驱动程序负责与 GPU 硬件通信，而 PyTorch 使用其内置的 CUDA 库来进行计算。
+   - **内置支持**: PyTorch 在安装时可以选择带有 CUDA 支持的版本。这些版本会包含与特定 CUDA Toolkit 版本兼容的 CUDA 库，比如 cuBLAS 和 cuDNN。因此，即使你没有手动安装 CUDA Toolkit，==PyTorch 依然可以通过内置的 CUDA 库来使用 GPU 加速==。
+   - **驱动要求**: PyTorch 需要你安装与之兼容的 NVIDIA 驱动程序，但不需要完整的 CUDA Toolkit。==驱动程序负责与 GPU 硬件通信，而 PyTorch 使用其内置的 CUDA 库来进行计算==。
 
 ### 3. **安装 CUDA Toolkit 的场景**
    - **开发自定义 CUDA 应用**: 如果你计划编写自定义的 CUDA 代码或需要使用 CUDA 的高级功能（例如编写 `.cu` 文件），你需要安装 CUDA Toolkit。
@@ -106,20 +106,24 @@ NVIDIA 驱动程序中的 CUDA 版本主要负责与 GPU 硬件通信，是 CUDA
 ### 总结
 如果你只是想使用 PyTorch 进行 GPU 加速的深度学习训练，安装带有 CUDA 支持的 PyTorch 通常已经足够了，不需要额外安装 CUDA Toolkit。只有在需要开发自定义 CUDA 应用或者使用其他依赖 CUDA Toolkit 的工具时，才需要安装完整的 CUDA Toolkit。
 
-##  CUDA Toolkit和不自带 CUDA 库的 PyTorch 版本
+##  CUDA Toolkit和不自带 CUDA 库的 PyTorch 版本=>GPU版本
 
 你可以在安装了 CUDA Toolkit 的环境中使用普通的 PyTorch 进行 GPU 加速的深度学习训练，但前提是你的 PyTorch 安装版本需要支持 CUDA。具体来说，有以下几个关键点：
 
 ### 1. **CUDA Toolkit 的版本匹配**
-   如果你已经安装了 CUDA Toolkit，你可以使用普通的 PyTorch 版本来进行 GPU 加速的深度学习训练。这里的“普通”是指不自带 CUDA 库的 PyTorch 版本。这种情况下，PyTorch 会使用系统中安装的 CUDA Toolkit 及其库（如 cuBLAS 和 cuDNN）来加速计算。
+
+如果你==已经安装了 CUDA Toolkit==，你可以使用普通的 PyTorch 版本来进行 GPU 加速的深度学习训练。这里的“普通”是指不自带 CUDA 库的 PyTorch 版本。这种情况下，PyTorch 会使用系统中安装的 CUDA Toolkit 及其库（如 cuBLAS 和 cuDNN）来加速计算。
 
 ### 2. **PyTorch 的 CUDA 支持**
-   - **检查 CUDA 版本**: 确保你安装的 PyTorch 支持你当前安装的 CUDA Toolkit 版本。你可以在 PyTorch 官方网站上选择相应的 CUDA 版本来安装支持 CUDA 的 PyTorch。
+
+   - **检查 CUDA 版本**: 确保你安装的 PyTorch 支持你当前==已安装的 CUDA Toolkit 版本==。你可以在 PyTorch 官方网站上选择相应的 CUDA 版本来安装支持该 CUDA ==的 PyTorch==。
    - **环境配置**: 安装好 PyTorch 后，你可以通过 `torch.cuda.is_available()` 来检查 PyTorch 是否成功检测到 GPU 和 CUDA。如果返回 `True`，说明 PyTorch 可以使用 CUDA 进行加速。
 
 ### 3. **潜在问题**
+
    - **库的版本不匹配**: 如果 PyTorch 和 CUDA Toolkit 版本不兼容，可能会导致运行时错误。因此，确保 PyTorch 和 CUDA Toolkit 的版本匹配非常重要。
    - **性能优化**: 使用自己安装的 CUDA Toolkit 有时会比 PyTorch 内置的库更灵活，但可能需要更多的手动配置和优化。
 
 ### 总结
+
 可以在已经安装 CUDA Toolkit 的环境下使用普通版本的 PyTorch 进行 GPU 加速的深度学习训练，只要确保 CUDA Toolkit 和 PyTorch 之间的版本匹配。如果你主要使用 PyTorch 进行深度学习，建议直接安装带有 CUDA 支持的 PyTorch 版本，这样可以简化安装和配置的过程。

@@ -1,6 +1,6 @@
 # 安装CUDA
 
- ## cuda安装
+ ## CUDA安装
 
  windows10 版本安装 [CUDA](https://so.csdn.net/so/search?q=CUDA&spm=1001.2101.3001.7020) ，首先需要下载两个安装包
 

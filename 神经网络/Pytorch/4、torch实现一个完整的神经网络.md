@@ -8,3 +8,4 @@ torch.autograd包的主要功能就是完成神经网络后向传播中的链式
 完成自动梯度需要用到的torch.autograd包中的Variable类对我们定义的Tensor数据类型变量进行封装，在封装后，计算图中的各个节点就是一个Variable对象，这样才能应用自动梯度的功能。
 
 下面我们使用autograd实现一个二层结构的神经网络模型
+

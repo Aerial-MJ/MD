@@ -19,7 +19,7 @@ for (int i = 1; i <= 20; ++i)
 
 **原理图**
 
-![image-20230415153023530](C:/Users/19409/AppData/Roaming/Typora/typora-user-images/image-20230415153023530.png)
+![image-20230415153023530](../../Image/image-20230415153023530.png)
 
 ## ST 表的查询
 
@@ -27,7 +27,7 @@ for (int i = 1; i <= 20; ++i)
 
 **原理图**
 
-![image-20230415153513902](C:/Users/19409/AppData/Roaming/Typora/typora-user-images/image-20230415153513902.png)
+![image-20230415153513902](../../Image/image-20230415153513902.png)
 
 我们希望前一个子区间的右端点尽可能接近r。当**l+2<sup>s</sup>−1=r**时，有 `s=log2⁡(r−l+1) `（这时 **r−2<sup>s</sup>+1=l** 也成立）。
 

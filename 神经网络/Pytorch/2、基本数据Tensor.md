@@ -142,6 +142,17 @@ tensor([[4.5414e+21, 3.0706e-41],
         [4.5414e+21, 3.0706e-41]])
 ```
 
+### 1.7 torch.randperm
+
+torch.randperm(n)：将0~n-1（包括0和n-1）随机打乱后获得的数字序列，函数名是random permutation缩写
+
+【sample】
+
+```python
+torch.randperm(10)
+```
+===> tensor([2, 3, 6, 7, 8, 9, 1, 5, 0, 4])
+
 ## 二、Tensor的运算
 
 ### 1. abs

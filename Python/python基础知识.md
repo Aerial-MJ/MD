@@ -8,14 +8,14 @@ Python 中的循环结构主要有两种：`for` 循环和 `while` 循环。这�
 
 `for` 循环在Python中用于遍历任何序列的项，如列表、元组、字典、字符串等，或者任何可迭代对象。
 
-#### 基本语法
+**基本语法**
 
 ```python
 for variable in sequence:
     # 执行的代码块
 ```
 
-#### 示例
+**示例**
 
 - 遍历列表：
 
@@ -51,14 +51,14 @@ for variable in sequence:
 
 `while` 循环在Python中用于在满足某条件的情况下重复执行一个代码块。
 
-#### 基本语法
+**基本语法**
 
 ```python
 while condition:
     # 执行的代码块
 ```
 
-#### 示例
+**示例**
 
 - 基本 `while` 循环：
 
@@ -98,6 +98,10 @@ else:
 ```
 
 这些基本的循环结构和控制语句构成了Python编程中处理重复任务的核心。每种循环有其特定的应用场景，比如当你需要遍历一个集合的元素时，`for` 循环非常适用；而当你需要在某个条件不再为真时停止循环时，`while` 循环则更加合适。
+
+## python的类
+
+
 
 ## os.path.join
 
@@ -139,7 +143,7 @@ path2 = r'C:\Users\Username\Documents'
 
 ## python的IO操作
 
-### read ＆ write
+### 1.read ＆ write
 
 `imread()` 和 `imwrite()` 是图像处理库（如OpenCV）中的函数，用于读取和写入图像文件。而 `read()` 和 `write()` 是一般文件操作的函数，用于读取和写入文本文件或二进制文件。
 
@@ -181,7 +185,7 @@ with open('output.txt', 'w') as file:
 
 因此，`imread()` 和 `imwrite()` 专门用于处理图像文件，而 `read()` 和 `write()` 则是通用的文件操作函数，可用于处理各种文件类型。
 
-### 使用 Pillow 处理图像
+### 2.使用 Pillow 处理图像
 
 使用`read()`和`show()`函数，这在Python中通常不是直接关联到OpenCV的。然而，这些函数名可能是你在使用其他库时遇到的，如`PIL`/`Pillow`，一个用于图像处理的库。在`Pillow`中，可以用`open()`方法来读取图像，并使用`show()`方法来显示图像。这里我将说明如何在`Pillow`中使用这些方法。
 
@@ -201,7 +205,7 @@ image = Image.open('your_image.jpg')  # 确保提供你的图像文件的正确�
 image.show()
 ```
 
-### Matplotlib imshow() 方法
+### 3.Matplotlib imshow() 方法
 
 - plt.imshow()： plt.imshow()用于显示图像数据或二维数组（也可以是三维数组，表示RGB图像）。当你有一个二维数组或图像数据时，你可以使用plt.imshow()将其可视化为图像。它将数组中的每个元素的值映射为一个颜色，并将这些颜色排列成图像的形式。plt.imshow()可以接受许多参数，用于控制图像的外观，例如颜色映射（colormap）、插值方法等。
 - plt.imshow()用于显示图像数据或二维数组（也可以是三维数组，表示RGB图像）。
@@ -235,7 +239,8 @@ plt.show()  # 显示图形
 
 #### Matplotlib
 
-##### 主要特点：
+**主要特点：**
+
 1. **数据可视化工具：**
    - `Matplotlib` 是一个广泛用于创建静态、动态和交互式图表的绘图库，尤其在数据科学、机器学习和科学计算中非常流行。它能够生成各种类型的图表，如折线图、散点图、柱状图、饼图等。
 
@@ -248,14 +253,15 @@ plt.show()  # 显示图形
 4. **绘图接口：**
    - 提供了面向对象的绘图接口 (`Figure`, `Axes`)，以及更加高层的 `pyplot` 接口，后者使得绘图更加简单和类似于 MATLAB。
 
-##### 主要用途：
+**主要用途：**
    - 数据可视化：绘制各种类型的图表。
    - 科学计算中的图像展示：显示数据处理或分析中的结果。
    - 在数据图表上叠加文本、线条、形状等元素。
 
 #### Pillow
 
-##### 主要特点：
+**主要特点：**
+
 1. **图像处理库：**
    - `Pillow` 是 Python Imaging Library (PIL) 的分支，是一个专门用于图像处理的库。它能够进行图像加载、显示、编辑、保存等各种操作。
 
@@ -269,7 +275,7 @@ plt.show()  # 显示图形
 4. **绘图功能：**
    - `Pillow` 也提供了绘图功能，可以在图像上绘制文本、形状、线条等，但这些功能更多地用于图像的编辑而非数据可视化。
 
-##### 主要用途：
+**主要用途：**
    - 图像的加载、处理、编辑和保存。
    - 图像格式的转换。
    - 图像处理和增强（例如应用滤镜、改变亮度/对比度）。
@@ -277,12 +283,13 @@ plt.show()  # 显示图形
 
 #### 异同点总结
 
-##### 相似之处：
+**相似之处：**
 - **图像显示**：两者都可以加载和显示图像。
 - **绘图功能**：两者都可以在图像或图表上绘制文本、形状和线条。
 - **易用性**：两者都有相对简单的 API，使得图像处理或绘图变得容易。
 
-##### 不同之处：
+**不同之处：**
+
 - **主要用途**：
   - `Matplotlib` 更侧重于 **数据可视化**，用于绘制各类数据图表。
   - `Pillow` 专注于 **图像处理**，用于对图像进行各种操作和编辑。
@@ -410,7 +417,7 @@ pattern = re.compile(r'\d+')  # 匹配一个或多个数字
 - `finditer()`：查找字符串中所有匹配的子串，并返回一个迭代器。
 - `sub()`：替换字符串中的匹配项。
 
-#### 示例
+**示例**
 
 下面是一些基本用法的例子：
 
@@ -497,10 +504,10 @@ sync_folders(images_folder, xmls_folder)
 {key_expression: value_expression for item in iterable if condition}
 ```
 
-- **`key_expression`**：字典键的表达式。
-- **`value_expression`**：字典值的表达式。
-- **`iterable`**：要迭代的可迭代对象（如列表、元组、字符串等）。
-- **`condition`**（可选）：一个条件表达式，用于过滤哪些元素将包含在字典中。
+- `key_expression`：字典键的表达式。
+- `value_expression`：字典值的表达式。
+- `iterable`：要迭代的可迭代对象（如列表、元组、字符串等）。
+- `condition`（可选）：一个条件表达式，用于过滤哪些元素将包含在字典中。
 
 ### 代码解释
 
@@ -589,3 +596,39 @@ remove_chinese_from_path(xml_folder_path)
 3. 本脚本仅针对每个 XML 文件中的 `<path>` 元素进行查找并替换指定的字符串（本例中是 "副本"）。如果你需要修改其他字符串，可以相应地修改 `replace` 函数的参数。
 
 在运行此脚本之前，请确保备份原始的 XML 文件以防万一，避免不可恢复的数据丢失。如果你的 XML 文件结构比较复杂或者有特殊的需求，你可能需要根据实际情况调整代码。
+
+## OCR-pytesseract识别
+
+```python
+import cv2
+from PIL import Image
+
+import pytesseract
+
+
+def Corver_Gray(image_path):
+    # 读取模板图像
+    img = cv2.imread(image_path)
+
+    # 转换为灰度图 也可读取时直接转换
+    ref = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # 二值图像
+    ref = cv2.threshold(ref, 60, 255, cv2.THRESH_BINARY_INV)[1]
+
+    return ref
+
+
+def Read_Img(img_path):
+    image = Corver_Gray(img_path)
+    image = cv2.imwrite("test.png", image)
+    return image
+
+
+Read_Img(r"C:\Users\19409\Desktop\data\yolov5-5.0\runs\detect\exp7\plates\test_60_1_1.jpg")
+
+
+text = pytesseract.image_to_string(Image.open("test.png"))
+print(text)
+```
+

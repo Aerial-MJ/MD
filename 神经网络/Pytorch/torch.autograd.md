@@ -19,3 +19,6 @@
 如果需要实现自定义的数学运算或网络层，可以继承*torch.autograd.Function*类，并重写*forward*和*backward*方法以支持自动微分。此外，*torch.autograd*还提供了性能分析工具*torch.autograd.profiler*，帮助开发者定位训练瓶颈。
 
 通过以上方式，您可以有效地利用**torch.autograd**实现深度学习模型的训练、优化和调试工作。它极大地简化了深度学习模型训练时梯度计算的复杂性和工作量，使得PyTorch能够灵活、高效地处理神经网络中复杂的梯度计算问题。
+
+开启梯度计算，关闭梯度计算
+

@@ -1,3 +1,5 @@
+# hold on ＆ grid on
+
 **在 MATLAB 中，`hold on` 和 `grid on` 是用于控制图形窗口显示的两个命令。**
 
 ## hold on

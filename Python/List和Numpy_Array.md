@@ -15,7 +15,7 @@ print(my_list)  # 输出：[1, 2, 3, 4, 5, 6, 7, 8]
 
 ```
 
-## Numpy Array-数组
+## Array-数组
 
 ```python
 import numpy as np

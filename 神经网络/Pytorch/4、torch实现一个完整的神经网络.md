@@ -102,5 +102,88 @@ for epoch in range(epoch_n):
 
 ```
 
-## grad详解
+## Variable 类
 
+在 PyTorch 的早期版本中，`Variable` 类用于封装张量，并提供计算梯度的功能。它在 PyTorch 的现代版本中已经被简化，张量（`Tensor`）现在直接支持梯度计算，而不需要显式地使用 `Variable`。不过，理解 `Variable` 的历史背景和作用对理解 PyTorch 的演变仍然很重要。
+
+### Variable 类的作用
+
+1. **封装张量和梯度信息**：
+   - `Variable` 类的主要作用是将一个张量（`Tensor`）封装起来，并提供自动微分（自动计算梯度）的功能。这使得用户能够在进行计算时跟踪梯度并进行反向传播。
+
+2. **计算梯度**：
+   - `Variable` 允许对其包裹的张量进行梯度计算。通过设置 `requires_grad=True`，`Variable` 可以跟踪其计算历史，并在进行反向传播时计算梯度。
+
+3. **历史记录**：
+   - `Variable` 保存了计算历史，记录了如何通过各种操作生成当前的张量。这使得它能够在进行反向传播时计算所有涉及的梯度。
+
+### Variable 的现代替代
+
+从 PyTorch 0.4.0 版本开始，`Variable` 类的功能已经被集成到 `Tensor` 类中。现代的 PyTorch 代码直接使用 `Tensor`，不再需要显式使用 `Variable`。在新的 API 中，`Tensor` 自身可以管理梯度计算，记录计算历史，并支持自动微分。
+
+### 现代 PyTorch 使用示例
+
+使用 `Tensor`（无需 `Variable`）：
+```python
+import torch
+import torch.nn as nn
+
+# 定义简单模型
+class SimpleModel(nn.Module):
+    def __init__(self):
+        super(SimpleModel, self).__init__()
+        self.linear = nn.Linear(1, 1)  # 线性层
+    
+    def forward(self, x):
+        return self.linear(x)  # 前向传播
+
+# 初始化模型
+model = SimpleModel()
+
+# 定义输入和目标
+input_tensor = torch.tensor([[1.0], [2.0], [3.0]], requires_grad=True)
+target = torch.tensor([[2.0], [4.0], [6.0]])
+
+# 前向传播
+output = model(input_tensor)
+
+# 计算损失
+loss_function = nn.MSELoss()
+loss = loss_function(output, target)
+
+# 反向传播
+loss.backward()
+
+# 打印梯度
+print(f"Input tensor gradients: {input_tensor.grad}")
+```
+
+### 旧版 PyTorch 使用 `Variable`
+
+如果你仍然使用旧版 PyTorch 或查看旧代码，`Variable` 用法如下：
+
+```python
+import torch
+from torch.autograd import Variable
+
+# 定义输入和目标
+input_tensor = Variable(torch.tensor([[1.0], [2.0], [3.0]]), requires_grad=True)
+target = Variable(torch.tensor([[2.0], [4.0], [6.0]]))
+
+# 定义模型和损失函数
+model = nn.Linear(1, 1)  # 线性层
+output = model(input_tensor)
+loss_function = nn.MSELoss()
+loss = loss_function(output, target)
+
+# 反向传播
+loss.backward()
+
+# 打印梯度
+print(f"Input tensor gradients: {input_tensor.grad}")
+```
+
+### 总结
+
+- **旧版 PyTorch**：`Variable` 用于封装张量并支持自动微分。
+- **现代 PyTorch**：`Variable` 的功能已经集成到 `Tensor` 类中，你可以直接使用 `Tensor` 进行梯度计算和反向传播，而不需要单独使用 `Variable`。

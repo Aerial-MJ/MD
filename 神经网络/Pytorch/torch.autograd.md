@@ -87,7 +87,7 @@ make_dot(y, params=dict(list(model.named_parameters()) + [('input', input_tensor
    - 这些张量不会参与构建计算图，即使它们被用于前向传播的计算，PyTorch 也不会记录这些计算的梯度。
    - 这样可以节省内存和计算资源，尤其是在推理阶段不需要计算梯度时。
 
-### 例子：
+**例子：**
 
 ```python
 import torch
@@ -108,7 +108,8 @@ print(f"x的梯度: {x.grad}")  # x 有梯度，因为 requires_grad=True
 print(f"y的梯度: {y.grad}")  # y 没有梯度，因为 requires_grad=False
 ```
 
-### 输出：
+**输出：**
+
 ```
 x的梯度: tensor([4., 5., 6.])
 y的梯度: None
@@ -118,7 +119,8 @@ y的梯度: None
 - `x` 的 `requires_grad=True`，所以它参与了计算图的构建，并且 PyTorch 在反向传播时计算了它的梯度。
 - `y` 的 `requires_grad=False`，因此虽然它参与了计算操作，但不会记录在计算图中，也不会计算它的梯度。
 
-### 总结：
+**总结：**
+
 如果一个张量的 `requires_grad=False`，则它不会在计算图中记录，也不会为它计算梯度。因此，这类张量的计算虽然会参与前向传播，但不会参与梯度计算和反向传播。
 
 ## 计算图的释放
@@ -150,7 +152,7 @@ z.backward()  # 计算梯度并累积到 x.grad 中
 print("Second backward, x.grad:", x.grad)
 ```
 
-### 解释
+**解释**
 
 1. **`retain_graph=True`**：
    - 这个参数允许你在第一次反向传播后保留计算图的中间值。这样，你就可以对同一图进行多次反向传播。
@@ -159,7 +161,7 @@ print("Second backward, x.grad:", x.grad)
 2. **梯度累积**：
    - 每次调用 `backward()` 时，计算的梯度会被加到现有的 `x.grad` 中。
 
-### 输出结果
+**输出结果**
 
 在这个示例中，第一次和第二次调用 `backward()` 后的 `x.grad` 会分别输出第一次和第二次的累积梯度。这样你就可以正确地计算累计梯度。
 
@@ -203,7 +205,8 @@ torch.set_grad_enabled(True)
 output_with_grad = model(input_tensor)  # 计算梯度
 ```
 
-### 总结
+**总结**
+
 - 当使用 `torch.no_grad()` 时，代码块内的操作不会计算梯度，但代码块外会恢复正常的梯度计算模式。
 - 你也可以使用 `torch.set_grad_enabled(True)` 来显式启用或禁用梯度计算。
 
@@ -271,7 +274,7 @@ for epoch in range(100):
 - 接着，通过前向传播计算输出，再通过损失函数计算损失，并调用 `loss.backward()` 计算当前损失的梯度。
 - 最后，通过 `optimizer.step()` 更新模型参数。
 
-### 总结
+**总结**
 
 每次训练迭代时清零梯度的目的是确保每个步骤的梯度计算都是基于当前数据的独立结果。这能避免不必要的梯度累积，从而保证模型参数的正确更新。
 
@@ -351,7 +354,7 @@ print("y's grad_fn:", y.grad_fn)  # 输出 <AddBackward0>
 print("z's grad_fn:", z.grad_fn)  # 输出 <MulBackward0>
 ```
 
-### 总结
+**总结**
 
 - `grad_fn` 属性用于记录张量的计算历史。
 - 它指向生成该张量的操作，有助于在反向传播时计算梯度。
@@ -372,7 +375,7 @@ print("z's grad_fn:", z.grad_fn)  # 输出 <MulBackward0>
 3. **后缀数字**：
    - 数字 `0` 是用来区分不同操作的。PyTorch 支持多个相同类型的操作在同一计算图中，比如多个乘法操作。后缀数字可以帮助唯一标识这些操作。例如，如果有多个乘法操作，后缀数字会递增（`MulBackward0`, `MulBackward1`, `MulBackward2` 等），确保每个操作都可以被独立追踪。
 
-### 总结
+**总结**
 
 - `MulBackward0` 指的是“乘法操作的反向传播”。
 - `0` 是一个索引，帮助区分同一类型的多个操作实例。
@@ -411,6 +414,6 @@ print(tensor3.grad_fn)  # <MulBackward0 object at ...>
 (<AccumulateGrad object at 0x...>, 1)
 ```
 
-### 总结
+**总结**
 
 - `0` 是一个索引，帮助区分相同类型的多个操作实例。这样可以确保每个操作在计算图中都是唯一可识别的，有助于管理复杂的计算过程。

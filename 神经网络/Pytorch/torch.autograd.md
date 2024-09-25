@@ -326,6 +326,13 @@ print(y.grad_fn.next_functions)  # 查看 y 的输入函数（即 x）
 
 在 PyTorch 中，`grad_fn` 是每个张量（`Tensor`）的一个属性，用于指示该张量的生成方式及其计算历史。具体来说，`grad_fn` 属性包含了一个指向该张量的生成操作的引用，帮助自动微分过程了解如何计算梯度。
 
+==PyTorch 的每个张量都会记录它的 `grad_fn`，即生成该张量的反向传播函数（如果该张量是通过操作生成的非叶子张量）。==
+
+**`Backward` 对象（反向传播函数）**：
+
+- 这些是 `torch.autograd.Function` 的子类，用于表示每个操作的反向传播逻辑。
+- 每个 `Backward` 对象对应于前向传播中的一个操作（如加法、乘法、卷积等），当反向传播时，PyTorch 会从这些 `Backward` 对象开始，按需计算每个张量的梯度。
+
 ### grad_fn 属性的详细说明
 
 1. **计算图中的节点**：
@@ -393,27 +400,3 @@ print("z's grad_fn:", z.grad_fn)  # 输出 <MulBackward0>
 
 2. **`0` 的含义**：
    - 这个数字是用来唯一标识该操作的实例。它的目的是在计算图中提供区分，以防出现多个相同类型的操作。例如，如果你对同一个张量执行了多次相同的操作，PyTorch 可能会创建多个 `AccumulateGrad` 对象，后缀数字可以帮助区分这些对象。
-
-**具体示例**
-
-如果你创建了多个相同操作，`grad_fn` 的输出可能看起来像这样：
-
-```python
-tensor1 = torch.tensor([1.0], requires_grad=True)
-tensor2 = tensor1 * 2
-tensor3 = tensor2 * 2  # 对 tensor2 进行相同操作
-
-print(tensor2.grad_fn)  # <MulBackward0 object at ...>
-print(tensor3.grad_fn)  # <MulBackward0 object at ...>
-```
-
-如果在反向传播时有多个相同的操作，那么你可能会看到不同的索引：
-
-```plaintext
-(<AccumulateGrad object at 0x...>, 0)
-(<AccumulateGrad object at 0x...>, 1)
-```
-
-**总结**
-
-- `0` 是一个索引，帮助区分相同类型的多个操作实例。这样可以确保每个操作在计算图中都是唯一可识别的，有助于管理复杂的计算过程。

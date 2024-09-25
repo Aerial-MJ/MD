@@ -187,7 +187,6 @@ Conv5 层的输出特征图可以视为图像经过深度特征提取后的高�
 - 在卷积特征提取之后，CTPN 使用双向 LSTM 进行序列建模。
 - BLSTM (Bidirectional LSTM) 会在特征图的每一列上进行操作，结合横向的上下文信息。BLSTM 的作用是通过前向和后向的序列建模，更好地捕捉文本行中的关联信息。
 - 这一步是为了帮助模型检测连续的文本区域，因为场景中的文本通常是连贯的。
-- 输出的特征维度通常为 256D。
 
 在 CTPN（Connectionist Text Proposal Network）模型中，**BLSTM（双向长短期记忆网络，Bidirectional Long Short-Term Memory）** 是用来处理特征图的水平序列信息的关键部分，尤其是对于文本检测，它帮助捕获上下文关系。下面详细介绍图中 BLSTM 的作用和结构。
 

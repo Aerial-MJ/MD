@@ -21,6 +21,8 @@ ava组件进行交互，例如图形用户界面（GUI）工具和持久化框�
 
 JavaBean的设计目标是提供一种可重用和互操作的组件模型，可以在不同的Java环境中使用。它广泛应用于Java图形界面开发、持久化框架（如Hibernate）和其他领域，以简化代码编写和提高代码的可维护性。
 
+==bean先创建再注入==
+
 ## DI 依赖注入
 
 在Spring框架中，你可以使用XML配置文件来创建Bean。下面是使用XML配置文件创建Bean的步骤：
@@ -278,7 +280,7 @@ public class SomeBeanImpl2 implements SomeBean {
 public class ExampleService {
 
    @Autowired
-   @Qualifier("bean1")
+   @Qualified("bean1")
    private SomeBean someBean;
 
    // 其他代码

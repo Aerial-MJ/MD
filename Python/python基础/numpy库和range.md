@@ -236,5 +236,19 @@ print(type(a1))  #<class 'list'>
 print(type(range(5)))  #<class 'range'>
 ```
 
+---
 
+`0 for _ in range(xxx)` 是 Python 中的一种生成器表达式或列表推导式的用法。其结构如下：
+
+```
+[0 for _ in range(xxx)]
+```
+
+这里的代码作用是生成一个由 `xxx` 个零组成的列表。
+
+- `0` 是每次循环要放入列表的元素。
+- `range(xxx)` 创建一个长度为 `xxx` 的范围对象。
+- `_` 是循环变量，通常在不需要变量本身的情况下用作占位符。
+
+例如，`[0 for _ in range(5)]` 生成 `[0, 0, 0, 0, 0]`。
 

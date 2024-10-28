@@ -15,19 +15,19 @@ print(type(z))  # 输出: <class 'list'>
 
 **List 转 Tensor**：使用 `torch.tensor()`
 
-**Tensor 转 List**：使用 `tensor.tolist()`
+**Tensor 转 List**：使用 `tensor实例.tolist()`
 
 
 
 **NumPy 转 Tensor**：`torch.from_numpy()`
 
-**Tensor 转 NumPy**：`tensor.numpy()`
+**Tensor 转 NumPy**：`tensor示例.numpy()`
 
 
 
 **List 转 NumPy 数组**：使用 `np.array()`
 
-**NumPy 数组转 List**：使用 `ndarray.tolist()`
+**NumPy 数组转 List**：使用 `ndarray实例.tolist()`
 
 **(NumPy 的 N 维数组对象 ndarray，它是一系列同类型数据的集合)**
 
@@ -131,25 +131,39 @@ print(my_list)
 
 ## numpy
 
-- **np.shape**
+在 `numpy` 中，`shape` 和 `size` 是两个用于描述数组（`ndarray`）结构的属性。它们有不同的用途：
+
+### ndarray.shape
+   - **作用**：返回数组每个维度的大小，表示数组的形状。
+   - **返回值**：`shape` 返回一个包含各维度大小的元组。例如，二维数组的 `shape` 为 `(rows, columns)`。
+   - **用途**：用于查看或更改数组的结构，例如用于遍历数组的各个维度或将数组输入到特定形状的网络模型中。
+
+**示例**：
 
 ```python
 import numpy as np
 
-# 创建一个一维数组
-a = np.array([1, 2, 3])
-print(a.shape) # 输出: (3,)
-
-# 创建一个二维数组
-b = np.array([[1, 2, 3], [4, 5, 6]])
-print(b.shape) # 输出: (2, 3)
-
-# 创建一个三维数组
-c = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
-print(c.shape) # 输出: (2, 2, 2)
+a = np.array([[1, 2, 3], [4, 5, 6]])  # 创建一个2x3的二维数组
+print(a.shape)  # 输出：(2, 3)，表示2行3列
 ```
 
-- **np.clip()**
+### ndarray.size
+   - **作用**：返回数组的总元素数，即数组中所有维度的大小之积。
+   - **返回值**：`size` 返回一个整数，表示数组中包含的元素个数。
+   - **用途**：用于确定数组的总大小，比如在数据处理中用来计算数据集的整体规模。
+
+**示例**：
+
+```python
+print(a.size)  # 输出：6，表示总共6个元素
+```
+
+- `shape`：返回数组各维度的大小，形状信息；数据类型为元组。
+- `size`：返回数组中元素的总个数；数据类型为整数。
+
+### np.clip()
+
+`np.clip()` 不是类函数，而是 **NumPy 模块中的一个通用函数**，即**模块函数**。它属于 `numpy` 模块的顶层函数，可以直接通过 `numpy` 调用，而不依赖于任何特定的类。
 
 使用numpy.clip(…)根据指定的min和max值将数据限定在一定范围内截断
 
@@ -158,11 +172,11 @@ import numpy as np
 data = np.array([i for i in range(-5, 6)])
 array([-5, -4, -3, -2, -1,  0,  1,  2,  3,  4,  5])
 # 指定min=-3， max=2，将数据限制在-3~2(包括-3和2)
-data = np.clip(dat, -3, 2)
+data = np.clip(data, -3, 2)
 array([-3, -3, -3, -2, -1,  0,  1,  2,  2,  2,  2])
 ```
 
-- **np.hstack**
+### np.hstack()
 
 按水平方向（列顺序）堆叠数组构成一个新的数组。堆叠的数组需要具有相同的维度
 
@@ -178,11 +192,11 @@ result = np.hstack((a,b))
 print(result) # 输出: [1 2 3 4 5 6]
 ```
 
-- **np.vstack()**
+### np.vstack()
 
 按垂直方向（行顺序）堆叠数组构成一个新的数组。堆叠的数组需要具有相同的维度
 
-- np.ndarray.astype()
+### ndarray.astype()
 
 ```python
 import numpy as np
@@ -196,9 +210,51 @@ float_arr = arr.astype(np.float64)
 print(float_arr, float_arr.dtype)
 ```
 
+在 `numpy` 中，`view()` 和 `reshape()` 也用于改变数组的形状，但它们的作用与 PyTorch 中有一些不同：
+
+### ndarray.reshape()
+
+   - **用途**：`reshape()` 用于改变数组的形状，返回一个新的视图或副本，具体取决于内存布局。
+   - **内存布局要求**：如果数据在内存中是连续的，`reshape()` 返回的是一个视图（view），而不是新的数据副本；如果数据不连续，则会创建一个新数组。
+   - **灵活性**：`reshape()` 不会改变数组的数据内容，只是重新组织元素以满足新的形状。
+
+**示例**：
+
+```python
+import numpy as np
+
+x = np.arange(6)  # 创建一个一维数组
+y = x.reshape(2, 3)  # 更改形状为 (2, 3)
+print(y)
+```
+
+   - 在此例中，`y` 通常是 `x` 的视图，不会占用额外的内存空间，但前提是 `x` 在内存中是连续的。
+   - **Note**: `numpy.reshape()` 可以通过参数 `order`（如 `order='C'` 或 `order='F'`）来指定内存布局顺序，分别表示行优先和列优先。
+
+### ndarray.view()
+
+   - **用途**：`view()` 返回相同数据的不同视图，通常用于创建新的数据类型或改变数据解读方式。
+   - **不同数据类型的视图**：`view()` 可以用于创建具有不同数据类型（dtype）的视图。不同于 `reshape()`，`view()` 不会更改形状，而是允许你以不同的字节解释数据。
+   - **内存开销**：`view()` 不会创建新的数据副本，因此效率高，适合数据的“重解读”。
+
+**示例**：
+
+```python
+x = np.array([1, 2, 3, 4], dtype=np.int32)
+y = x.view(dtype=np.int16)  # 将 int32 类型的数组视为 int16
+print(y)  # 输出：[1 0 2 0 3 0 4 0]
+```
+
+   - `reshape()`：用于改变数组形状，返回视图或副本，具体取决于数据在内存中的连续性。
+   - `view()`：用于创建相同数据的不同视图，通常用于更改数据类型或重新解释数据内容，而不改变形状。
+
+在 `numpy` 中，`reshape()` 用于改变数组的形状，而 `view()` 更适合数据类型转换或重解读。
+
 ## list
 
-- **Python中列表截取（Slice，即冒号 : ）**
+### list的切片
+
+Python 的 `list` 没有名为 `slice` 的方法，但可以使用**切片操作**来获取列表的子部分。切片是 `list[start:stop:step]` 的一种索引方式，可以灵活地从列表中提取一部分元素。**Python中列表截取（Slice，即冒号 : ）**
 
 ```
 a[start:stop]  # 从 index=start 开始（即包含start），到 index=stop-1（即不包含stop）
@@ -211,7 +267,42 @@ a[:]           # 取整个 List
 
 ## torch
 
-- transpose函数
+在 `torch` 中，`tensor.size()` 和 `tensor.shape` 都用于获取张量的维度信息，但它们有一些细微的差异：
+
+### tensor.size()
+
+- `size()` 是 `torch.Tensor` 的一个方法，返回 `torch.Size` 对象。
+- `torch.Size` 是一个类似于元组的对象，包含张量的每个维度大小。
+- `size()` 是一种调用方式，适用于需要动态获取张量尺寸的情况。
+
+**示例**：
+
+```python
+import torch
+
+x = torch.randn(3, 4, 5)
+print(x.size())  # 输出：torch.Size([3, 4, 5])
+```
+
+### tensor.shape
+
+- `shape` 是张量的一个属性，直接返回 `torch.Size` 对象。
+- 作为属性，`shape` 更简洁易读。
+
+**示例**：
+
+```python
+print(x.shape)  # 输出：torch.Size([3, 4, 5])
+```
+
+**两者的区别**
+
+- **用法**：`size()` 是一个方法，需要括号；`shape` 是属性，不需要括号。
+- **功能**：在功能上，两者完全相同，均返回 `torch.Size` 对象，表示张量的维度。
+
+在大多数情况下，`shape` 属性更简洁，使用更为广泛。
+
+### tensor.transpose()
 
 **transpose**函数的基本操作是接收两个维度**dim1**和**dim2**，并将这两个维度的内容进行调换。无论**dim1**和**dim2**的顺序如何，结果都是相同的。例如，对于一个二维张量*a*，可以使用**a.transpose(0,1)**或**a.transpose(1,0)**来交换其两个维度的内容。这个函数也可以通过**torch.transpose(tensor, dim1, dim2)**的方式调用。
 
@@ -230,7 +321,7 @@ print(a.transpose(0,1))
 
 # [3, 6]])
 ```
-- permute函数
+### tensor.permute()
 
 **permute**函数的基本操作是重组张量的维度。它支持高维操作，通过**tensor.permute(dim0, dim1, ..., dimn)**的方式来指定新的维度顺序。在调用**permute**时，必须指定所有维度。例如，对于一个三维张量**b**，可以使用**b.permute(2,0,1)**来重新排列其维度。
 
@@ -246,11 +337,50 @@ print(b.permute(2,0,1))
 
 ![image-20241025210038388](../Image/image-20241025210038388.png)
 
+在 `torch` 中，`view()` 和 `reshape()` 都用于改变张量的形状，但它们在一些细节上有所不同。让我们详细比较它们：
+
+### tensor.view()
+   - **用途**：用于重新调整张量的形状（例如改变维度），但要求张量在内存中是连续的。
+   - **内存连续性要求**：`view()` 需要张量是**连续的**（contiguous），否则会抛出错误。
+   - **执行效率**：如果满足内存连续性条件，`view()` 会直接在原张量上调整形状，而不是创建新的副本，速度更快。
+
+**示例**：
+
+```python
+import torch
+
+x = torch.randn(2, 3, 4)
+y = x.view(6, 4)  # 更改形状为 (6, 4)
+print(y.shape)  # 输出：torch.Size([6, 4])
+```
+
+   - **注意**：如果你在某些操作后发现 `view()` 抛出错误，可以先调用 `x = x.contiguous()`，使张量变为连续。
+
+### tensor.reshape()
+   - **用途**：同样用于调整张量形状，但不要求张量在内存中是连续的。
+   - **灵活性**：`reshape()` 会尝试返回一个具有相同数据但新形状的张量。它首先会检查原张量是否可以直接使用新的形状；如果不可以，它会生成新的张量副本。
+   - **内存开销**：`reshape()` 的操作更灵活，但可能会创建新的副本，因此有时候内存开销略高于 `view()`。
+
+**示例**：
+
+```python
+x = torch.randn(2, 3, 4)
+z = x.reshape(6, 4)  # 形状调整为 (6, 4)，即使不连续也能成功
+print(z.shape)  # 输出：torch.Size([6, 4])
+```
+
+**总结与选择**
+
+   - `view()`：适用于内存连续的情况，速度更快，通常用于简单的形状变换。
+   - **`reshape()`：更灵活，不依赖内存连续性，更适合在不确定张量是否连续的情况下使用。
+
+在不确定是否连续的情况下，建议使用 `reshape()`；否则，`view()` 会提供更高的性能。
+
 ## 模块的概念
 
 `numpy` 并不是一个类，而是一个**模块**。在 Python 中，模块是一个包含函数、类、变量等定义的文件或一组文件。NumPy 库是一个模块化的库，其中包含多个模块（如 `numpy.linalg`、`numpy.random` 等），提供了大量用于科学计算的函数和类，但 `numpy` 本身并不是一个类。
 
-### numpy 的结构
+**numpy 的结构**
 
 - **模块级别函数**：如 `np.add()`、`np.clip()` 等直接定义在 `numpy` 模块中的函数，它们提供了数学运算、逻辑运算、数组操作等功能。
 - **类**：NumPy 中的核心数据结构是 `ndarray`，这是一个类，用于表示多维数组。除了 `ndarray`，NumPy 还提供了其他辅助类（如 `matrix`、`dtype`、`random.Generator` 等）。
@@ -285,8 +415,6 @@ print(type(arr))
 1. **基本随机数生成**：生成均匀分布、正态分布等常见分布的随机数。
 2. **随机采样**：从指定的范围或数组中随机抽取数据。
 3. **概率分布**：生成符合特定概率分布的随机数，如二项分布、泊松分布等。
-
-### 常用方法
 
 #### 1. 生成随机数
 
@@ -452,9 +580,9 @@ print(func2())  # 输出 "Hello from module2"
 
 在 Python 中，`__init__.py` 文件的主要作用是将包含它的目录标记为一个包。在 Python 3.3 及以后的版本中，这个文件不是强制性的，允许创建**无初始化文件的包**（也称为“命名空间包”）。你可以在没有 `__init__.py` 的文件夹中使用模块和函数，但有需要注意：
 
-**注意路径**： 在没有 `__init__.py` 文件的情况下，Python 仍然能够找到这些模块，只要你确保 Python 的搜索路径中包含了这些目录。默认情况下，当前工作目录和安装的包路径会被包含在 `sys.path` 中。
+- **注意路径**： 在没有 `__init__.py` 文件的情况下，Python 仍然能够找到这些模块，只要你确保 Python 的搜索路径中包含了这些目录。默认情况下，当前工作目录和安装的包路径会被包含在 `sys.path` 中。
 
-### 小结
+**总结**
 
 - **在同一个文件中定义和调用函数**：直接定义后调用。
 - **从其他文件引用函数**：使用 `import` 语句，可以导入整个模块或特定的函数。
@@ -482,3 +610,23 @@ print(squared_evens)  # 输出: [4, 16, 36]
 ```
 
 在这个示例中，`squared_evens` 列表只包含了 `numbers` 列表中的偶数的平方。
+
+## // 整除除法
+
+在 `torch` 中，`//` 表示 **整数除法**（也称为**地板除法**），它会将除法的结果向下取整到最接近的整数。例如：
+
+```python
+import torch
+
+a = torch.tensor([5])
+b = torch.tensor([2])
+result = a // b  # 结果为 2，而不是 2.5
+```
+
+在上面的例子中，`5 // 2` 的结果是 `2`，而不是浮点数 `2.5`，因为 `//` 会向下取整。
+
+在 `torch` 中使用 `//` 操作符的场景通常是为了获取一个分片、分割或索引中的整数值，避免浮点数索引产生错误。
+
+### 整数除法与常规除法
+- **常规除法 `/`**：返回浮点数结果，如 `5 / 2` 会返回 `2.5`。
+- **整数除法 `//`**：返回整数结果，向下取整

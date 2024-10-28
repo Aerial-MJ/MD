@@ -151,7 +151,7 @@ torch.randperm(n)：将0~n-1（包括0和n-1）随机打乱后获得的数字序
 ```python
 torch.randperm(10)
 ```
-===> tensor([2, 3, 6, 7, 8, 9, 1, 5, 0, 4])
+**===> tensor([2, 3, 6, 7, 8, 9, 1, 5, 0, 4])**
 
 ## 二、Tensor的运算
 
@@ -297,7 +297,7 @@ print("立方结果张量：", pow_tensor_cube)
 >
 >让我们更详细地解释这两者的区别：
 >
->#### 1. `torch.mm` (Matrix Multiplication)
+>#### 1. torch.mm (Matrix Multiplication)
 >
 >`torch.mm` 只支持 **二维矩阵之间的乘法**，所以只能对两个二维张量进行矩阵乘法运算。对于高维张量，它会报错。
 >
@@ -323,7 +323,7 @@ print("立方结果张量：", pow_tensor_cube)
 >        [139, 154]])
 >```
 >
->#### 2. `torch.matmul` (General Matrix Multiplication)
+>#### 2. torch.matmul (General Matrix Multiplication)
 >
 >`torch.matmul` 是 PyTorch 中一个更通用的矩阵乘法函数。它不仅可以处理二维矩阵，还可以处理更高维度的张量，自动将张量的 **最后两个维度** 进行矩阵乘法，而 **其余维度会通过广播机制进行运算**。
 >
@@ -407,7 +407,7 @@ print("矩阵乘法结果：", mm_tensor)
 
 ---
 
-### 7.mul
+### 7. mul
 
 `torch.mul` 是 PyTorch 中的用于执行 **逐元素（element-wise）乘法** 的函数。与矩阵乘法不同，`torch.mul` 直接对两个张量的对应位置上的元素相乘，并返回结果。
 

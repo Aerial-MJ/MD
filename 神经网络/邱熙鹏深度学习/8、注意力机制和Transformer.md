@@ -35,3 +35,5 @@
 ![image-20240928180751305](../../Image/image-20240928180751305.png)
 
 ## Transformer
+
+![Transformer/CNN/RNN的对比（时间复杂度，序列操作数，最大路径长度）](https://picx.zhimg.com/70/v2-20346c2ead4fc7a36b2857bf167b702d_1440w.image?source=172ae18b&biz_tag=Post)

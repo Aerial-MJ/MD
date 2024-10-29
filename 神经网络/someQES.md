@@ -44,3 +44,40 @@ class MyModel(nn.Module):
         x = fc1(x)
         return x
 ```
+
+```python
+from torch import nn
+
+
+class MyModel(nn.Module):
+    def __int__(self):
+        super(MyModel, self).__init__()
+    def forward(self, x):
+        conv1 = nn.Conv2d(1, 32, kernel_size=3)  # 每次调用forward都会创建新的层
+        fc1 = nn.Linear(32 * 26 * 26, 10)
+        x = conv1(x)
+        x = x.view(x.size(0), -1)
+        x = fc1(x)
+        return x
+
+model=MyModel()
+
+
+print(model.parameters())
+
+# 打印所有参数的 requires_grad 状态
+for name, param in model.named_parameters():
+    print(f"{name}: {param.requires_grad}")
+    ###什么都不会打印
+```
+
+==怎么修改这个模型==
+
+**直接对model模块修改就可以，可以打到模型里面去**
+
+```python
+# 替换最后的全连接层
+num_features = model.classifier[6].in_features
+model.classifier[6] = nn.Linear(num_features, 2)  # 假设为二分类任务
+```
+

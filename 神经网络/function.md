@@ -95,7 +95,20 @@ print(np_from_tensor)
 
 ```
 
+**使用 GPU Tensor**
 
+如果 `tensor` 在 GPU 上，`tensor.numpy()` 不能直接使用。需要先将它移到 CPU，再转换为 NumPy 数组：
+
+```python
+#创建一个 GPU 上的 Tensor
+tensor_gpu = torch.tensor([1, 2, 3, 4], device='cuda')
+
+# 移到 CPU 后再转换为 NumPy 数组
+np_from_tensor_gpu = tensor_gpu.cpu().numpy()
+
+print(np_from_tensor_gpu)
+# 输出: array([1, 2, 3, 4])
+```
 
 
 
@@ -302,6 +315,28 @@ print(x.shape)  # 输出：torch.Size([3, 4, 5])
 
 在大多数情况下，`shape` 属性更简洁，使用更为广泛。
 
+### tensor.to()
+
+`.to()` 方法可以指定数据类型或设备（例如 `cuda`）：
+
+```python
+# 创建一个浮点数 Tensor
+tensor = torch.tensor([1.2, 3.4, 5.6])
+
+# 转换为整型
+tensor_int = tensor.to(torch.int)
+print(tensor_int)
+```
+
+### tensor.type()
+
+`.type()` 方法也可以指定 Tensor 的具体类型：
+
+```python
+tensor_int = tensor.type(torch.IntTensor)
+print(tensor_int)
+```
+
 ### tensor.transpose()
 
 **transpose**函数的基本操作是接收两个维度**dim1**和**dim2**，并将这两个维度的内容进行调换。无论**dim1**和**dim2**的顺序如何，结果都是相同的。例如，对于一个二维张量*a*，可以使用**a.transpose(0,1)**或**a.transpose(1,0)**来交换其两个维度的内容。这个函数也可以通过**torch.transpose(tensor, dim1, dim2)**的方式调用。
@@ -372,9 +407,65 @@ print(z.shape)  # 输出：torch.Size([6, 4])
 **总结与选择**
 
    - `view()`：适用于内存连续的情况，速度更快，通常用于简单的形状变换。
-   - **`reshape()`：更灵活，不依赖内存连续性，更适合在不确定张量是否连续的情况下使用。
+   - `reshape()`：更灵活，不依赖内存连续性，更适合在不确定张量是否连续的情况下使用。
 
 在不确定是否连续的情况下，建议使用 `reshape()`；否则，`view()` 会提供更高的性能。
+
+## tensor autograd
+
+
+
+## torch.nn
+
+### parameter class
+
+**model.features.parameters()和model.parameters()**
+
+`model.parameters()`
+
+- **作用**：返回模型中所有可训练的参数，包括每一层的权重和偏置。
+
+- **使用场景**：通常用于定义优化器时，传入所有参数以便进行梯度更新。
+
+- **适用范围**：当你想更新模型的全部参数时，可以使用 `model.parameters()`，例如在以下代码中：
+
+  ```python
+  for param in model.parameters():
+      print("参数类型：", type(param), "参数大小：", param.size(), param.requires_grad)
+  
+  optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+  ```
+
+`model.features.parameters()`
+
+**作用**：只返回模型中 `features` 模块的参数。
+
+**使用场景**：如果只想更新特定部分的参数（如特征提取层 `features`），可以使用 `model.features.parameters()`。这种做法常见于微调预训练模型时，只希望更新特定的几层。
+
+**适用范围**：例如，在经典的卷积神经网络如 VGG、ResNet 等中，特征提取层通常命名为 `features`，而全连接层或分类层可能命名为 `classifier` 或 `fc`。可以分别通过 `model.features.parameters()` 或 `model.classifier.parameters()` 获取这些层的参数。
+
+```python
+for name, param in model.named_parameters():
+    print(f"{name}: {param.requires_grad}")
+```
+
+**name的取名很讲究**=> 模块名，模块的层数，具体的参数
+
+features.0.weight: False
+features.0.bias: False
+features.2.weight: False
+features.2.bias: False
+features.5.weight: False
+features.5.bias: False
+features.7.weight: False
+features.7.bias: False
+
+**named_parameters**
+
+```python
+for name, param in model.named_parameters():
+    print(f"{name}: {param.requires_grad}")
+```
 
 ## 模块的概念
 

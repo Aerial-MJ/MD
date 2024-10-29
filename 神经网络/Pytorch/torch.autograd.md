@@ -278,7 +278,7 @@ for epoch in range(100):
 
 每次训练迭代时清零梯度的目的是确保每个步骤的梯度计算都是基于当前数据的独立结果。这能避免不必要的梯度累积，从而保证模型参数的正确更新。
 
-## 查看节点的历史
+## 查看节点的历史--使用grad_fn
 
 在 PyTorch 中，要查看某个张量的前一个节点及其构成，你可以访问该张量的 `grad_fn` 属性，进而追踪它的计算历史。每个 `grad_fn` 记录了生成该张量的操作和输入张量的关系。通过这种方式，你可以逐步回溯到生成该张量的所有输入节点。
 
@@ -322,7 +322,7 @@ print(y.grad_fn.next_functions)  # 查看 y 的输入函数（即 x）
 
 通过这种方式，你可以详细了解计算图中每个节点的来源以及它们是如何相互关联的。
 
-## grad_fn
+## grad_fn属性
 
 在 PyTorch 中，`grad_fn` 是每个张量（`Tensor`）的一个属性，用于指示该张量的生成方式及其计算历史。具体来说，`grad_fn` 属性包含了一个指向该张量的生成操作的引用，帮助自动微分过程了解如何计算梯度。
 
@@ -367,7 +367,7 @@ print("z's grad_fn:", z.grad_fn)  # 输出 <MulBackward0>
 - 它指向生成该张量的操作，有助于在反向传播时计算梯度。
 - 只有 `requires_grad=True` 的张量会有 `grad_fn` 属性。通过 `grad_fn`，你可以追踪计算图中的操作，并理解每个张量是如何产生的。
 
-## MulBackward0
+## MulBackward0类--->grad_fn属性
 
 在 PyTorch 中，`MulBackward0` 是一个表示乘法操作反向传播的类。这里的命名方式有其特定的含义：
 
@@ -389,7 +389,7 @@ print("z's grad_fn:", z.grad_fn)  # 输出 <MulBackward0>
 
 这样的命名约定有助于在复杂的计算图中跟踪和管理操作，确保每个操作都能正确地定义其反向传播过程。
 
-## <AccumulateGrad object at 0x00000164B638AE20>, 0
+## (<AccumulateGrad object at 0x00000164B638AE20>, 0)--->grad_fn属性
 
 在 PyTorch 中，当你查看某个张量的 `grad_fn` 属性时，输出通常包含一个对象和一个索引值（如 `(<AccumulateGrad object at 0x00000164B638AE20>, 0)`）。这里的 `0` 表示该操作的索引，用于区分同一类型的多个操作实例。
 

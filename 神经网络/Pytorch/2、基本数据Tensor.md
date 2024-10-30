@@ -6,6 +6,18 @@ Tensor，即张量，是PyTorch中的基本操作对象，可以看做是包含�
 
 ![b8b14c8a7f46380eec7ee46dfad3b016](../../Image/b8b14c8a7f46380eec7ee46dfad3b016.png)
 
+`torch.tensor` 将二维列表 `[[0, 0], [0, 1], [1, 0], [1, 1]]` 转换成一个张量，并指定数据类型为 `float32`。最后通过 `.to("cuda")` 将张量传输到 GPU 上。完整代码的功能如下：
+
+```python
+x_test = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float32).to("cuda")
+```
+
+`dtype` 和 `device` 参数可以一起传递给 `torch.tensor`，这样可以减少 `.to("cuda")` 的调用。修改后的代码如下：
+
+```python
+x_test = torch.tensor([[0, 0], [0, 1], [1, 0], [1, 1]], dtype=torch.float32, device="cuda")
+```
+
 ### 1.1 Tensor的创建
 
 ![47fb7bb7447f97d470d10ced71e4a52f](../../Image/47fb7bb7447f97d470d10ced71e4a52f.png)

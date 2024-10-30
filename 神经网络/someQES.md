@@ -68,16 +68,28 @@ print(model.parameters())
 # 打印所有参数的 requires_grad 状态
 for name, param in model.named_parameters():
     print(f"{name}: {param.requires_grad}")
-    ###什么都不会打印
+    ###我们发现什么都不会打印
 ```
 
-==怎么修改这个模型==
-
-**直接对model模块修改就可以，可以打到模型里面去**
+**创建新的层对象**
 
 ```python
-# 替换最后的全连接层
-num_features = model.classifier[6].in_features
-model.classifier[6] = nn.Linear(num_features, 2)  # 假设为二分类任务
+for epoch in range(10):  # 进行10个epoch的训练
+    optimizer.zero_grad()  # 清空之前的梯度信息（如果有的话）
+    outputs = model(train_data)  # 前向传播(调用forward方法)
+    loss = criterion(outputs, train_labels)  # 计算损失
+    loss.backward()  # 反向传播，计算梯度
+    optimizer.step()  # 更新权重参数
+    print(f'Epoch {epoch+1}, Loss: {loss.item()}')  # 打印损失信息
 ```
 
+## 数据在相同设备上才能一起运行
+
+```python
+a = torch.ones(2, 3)
+b = a.type(dtype='torch.cuda.DoubleTensor')
+print(b)
+c = a + b
+```
+
+**Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!**

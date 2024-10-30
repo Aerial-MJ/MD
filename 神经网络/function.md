@@ -317,6 +317,24 @@ print(x.shape)  # 输出：torch.Size([3, 4, 5])
 
 ### tensor.to()
 
+**torch.device("cuda:0")="cuda:0"**
+
+```python
+>>> tensor = torch.randn(2, 2)  # Initially dtype=float32, device=cpu
+>>> tensor.to(torch.float64)
+tensor([[-0.5044,  0.0005],
+        [ 0.3310, -0.0584]], dtype=torch.float64)
+
+>>> cuda0 = torch.device('cuda:0')
+>>> tensor.to(cuda0)
+tensor([[-0.5044,  0.0005],
+        [ 0.3310, -0.0584]], device='cuda:0')
+
+>>> tensor.to(cuda0, dtype=torch.float64)
+tensor([[-0.5044,  0.0005],
+        [ 0.3310, -0.0584]], dtype=torch.float64, device='cuda:0')
+```
+
 `.to()` 方法可以指定数据类型或设备（例如 `cuda`）：
 
 ```python
@@ -330,9 +348,41 @@ print(tensor_int)
 
 ### tensor.type()
 
+```python
+# 创建一个浮点数 Tensor
+tensor = torch.tensor([1.2, 3.4, 5.6])
+
+# 转换为整型
+tensor_int = tensor.to("cuda")
+
+print(tensor_int.device)
+print(tensor_int.dtype)
+print(tensor_int.type())
+>>>cuda:0
+>>>torch.float32
+>>>torch.cuda.FloatTensor
+```
+
+```python
+>>> import torch
+>>> a = torch.ones(2,3)
+>>> a.type()
+'torch.FloatTensor'
+>>> a.dtype
+torch.float32
+>>> b = a.type(dtype='torch.cuda.DoubleTensor')
+>>> b
+tensor([[1., 1., 1.],
+        [1., 1., 1.]], device='cuda:0', dtype=torch.float64)
+```
+
+这里的dtype的上面的dtype不一样
+
 `.type()` 方法也可以指定 Tensor 的具体类型：
 
 ```python
+# 创建一个浮点数 Tensor
+tensor = torch.tensor([1.2, 3.4, 5.6])
 tensor_int = tensor.type(torch.IntTensor)
 print(tensor_int)
 ```
@@ -413,11 +463,72 @@ print(z.shape)  # 输出：torch.Size([6, 4])
 
 ## tensor autograd
 
+### tensor.grad
 
+### tensor.grad_fn
+
+**梯度函数，grad_function**
+
+grad_fn 属性是 PyTorch 中的一个重要特性，它保存了张量的梯度函数，用于计算当前张量相对于计算图中其他张量的梯度。
+
+**grad_fn**: **叶子节点**通常为None，只有结果节点的**grad_fn**才有效，用于指示梯度函数是哪种类型。
+
+通过张量的 `grad_fn` 属性来检查它的计算历史。`grad_fn` 表示创建该张量的函数，只有当张量是通过某些操作得到的中间张量时，`grad_fn` 才不为 None。
+
+### tensor.grad_fn.next_functions()
+
+### tensor.requires_grad
+
+### tensor模型的计算图
+
+**对应的是grad_fn和function**
+
+在 PyTorch 中，*grad_fn* 属性是动态计算图的关键部分，也是 PyTorch 的关键功能之一。与 TensorFlow 等其他使用静态计算图的深度学习框架不同，PyTorch 根据实际代码执行情况动态构建计算图。这种动态特性允许在每次迭代或运行期间根据不同的输入数据调整和创建计算图
 
 ## torch.nn
 
+**==怎么修改这个模型==**
+
+**直接对model模块修改就可以，可以打到模型里面去**
+
+```python
+# 替换最后的全连接层
+num_features = model.classifier[6].in_features
+model.classifier[6] = nn.Linear(num_features, 2)  # 假设为二分类任务
+```
+
 ### parameter class
+
+**继承自Torch.Tensor**
+
+**model.parameters()**
+
+```python
+model = models.vgg16(pretrained=True)
+
+print(model.parameters())
+```
+
+`model.parameters` 返回的是一个生成器（generator），而不是一个类。当你调用 `model.parameters` 时，它会返回一个迭代器，可以用来遍历模型中的所有可学习参数（例如权重和偏置）。具体来说，调用 `print(model.parameters)` 只会输出 `<generator object Module.parameters at ...>` 这样的信息，因为生成器本身并没有直接输出内容。
+
+如果你想查看模型的参数，可以将其转换为列表或者遍历它，如下所示：
+
+```python
+import torch
+from torchvision import models
+
+model = models.vgg16(pretrained=True)
+
+# 打印所有参数
+for param in model.parameters():
+    print(param.shape)
+
+# 或者将参数转化为列表
+params_list = list(model.parameters())
+print(params_list)
+```
+
+在这个例子中，`for param in model.parameters():` 会遍历所有参数，并输出每个参数的形状。这样你可以更清楚地看到模型中参数的具体信息。
 
 **model.features.parameters()和model.parameters()**
 
@@ -436,6 +547,8 @@ print(z.shape)  # 输出：torch.Size([6, 4])
   optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
   ```
 
+----
+
 `model.features.parameters()`
 
 **作用**：只返回模型中 `features` 模块的参数。
@@ -443,6 +556,9 @@ print(z.shape)  # 输出：torch.Size([6, 4])
 **使用场景**：如果只想更新特定部分的参数（如特征提取层 `features`），可以使用 `model.features.parameters()`。这种做法常见于微调预训练模型时，只希望更新特定的几层。
 
 **适用范围**：例如，在经典的卷积神经网络如 VGG、ResNet 等中，特征提取层通常命名为 `features`，而全连接层或分类层可能命名为 `classifier` 或 `fc`。可以分别通过 `model.features.parameters()` 或 `model.classifier.parameters()` 获取这些层的参数。
+
+----
+**named_parameters()**
 
 ```python
 for name, param in model.named_parameters():
@@ -459,8 +575,6 @@ features.5.weight: False
 features.5.bias: False
 features.7.weight: False
 features.7.bias: False
-
-**named_parameters**
 
 ```python
 for name, param in model.named_parameters():

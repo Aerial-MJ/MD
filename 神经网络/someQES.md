@@ -93,3 +93,24 @@ c = a + b
 ```
 
 **Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!**
+
+```python
+
+# 创建一个需要计算梯度的张量 x
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+w = x.sum()
+# 创建一些操作
+y = x + 2  # y 是由 x 生成的，y 的 requires_grad 将会是 True
+print(y.requires_grad)
+z = y * 3  # z 也是需要梯度的
+z = z.sum()  # z 是标量
+m = z + w
+t = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+m *= sum(t)
+print(x.grad_fn)  # 输出 <AddBackward0>
+# 进行反向传播
+
+z.backward()
+make_dot(m).render("test6")
+```
+

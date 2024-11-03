@@ -376,9 +376,9 @@ tensor([[1., 1., 1.],
         [1., 1., 1.]], device='cuda:0', dtype=torch.float64)
 ```
 
-这里的dtype的上面的dtype不一样
-
 `.type()` 方法也可以指定 Tensor 的具体类型：
+
+这里的dtype的上面的dtype不一样
 
 ```python
 # 创建一个浮点数 Tensor

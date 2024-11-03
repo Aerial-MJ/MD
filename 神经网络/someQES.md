@@ -94,6 +94,8 @@ c = a + b
 
 **Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!**
 
+### qs
+
 ```python
 
 # 创建一个需要计算梯度的张量 x

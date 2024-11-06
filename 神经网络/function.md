@@ -280,6 +280,16 @@ a[:]           # 取整个 List
 
 ## torch
 
+### torch.float64
+
+`torch.float64` 是 PyTorch 中的一个**对象**，而不是一个类。它是 `torch.dtype` 类的一个实例，表示 PyTorch 的浮点数数据类型（双精度浮点数，即 64 位浮点数）。
+
+在 PyTorch 中，数据类型（dtype）用于指定张量的元素类型，比如 `torch.float32`、`torch.float64`、`torch.int32` 等。这些数据类型本质上是 `torch.dtype` 类的具体实例，而不是类本身。
+
+`numpy.int64` 不是一个对象，而是 **NumPy 的一种数据类型**，具体来说，它是 `numpy` 模块中定义的 **数据类型类**。在 NumPy 中，`numpy.int64` 是 `numpy.dtype` 的一个子类，表示 64 位的整数类型。与 PyTorch 的 `torch.int32` 不同，`numpy.int64` 本质上是一个类，而不是 `dtype` 类的一个对象。
+
+---
+
 在 `torch` 中，`tensor.size()` 和 `tensor.shape` 都用于获取张量的维度信息，但它们有一些细微的差异：
 
 ### tensor.size()
@@ -387,6 +397,38 @@ tensor_int = tensor.type(torch.IntTensor)
 print(tensor_int)
 ```
 
+### torch.argmax()
+
+`torch.argmax` 是 PyTorch 中的一个函数，用于返回张量（tensor）中最大值的索引。该函数可以用于多维张量，允许指定一个维度（axis），从而查找该维度上最大值的索引。默认情况下，如果没有指定维度，`torch.argmax` 会返回张量中所有元素的最大值的索引。
+
+`dim=1` 确实是指 **列维度**，而 `torch.argmax` 沿着指定维度查找最大值的索引时，`dim=1` 会查找每一行中最大值的索引。让我们详细解释一下：
+
+在 PyTorch 中，张量的维度是从 0 开始的：
+
+- `dim=0` 表示沿着 **行**（第一个维度）进行操作。
+- `dim=1` 表示沿着 **列**（第二个维度）进行操作。
+
+所以，当你使用 `dim=1` 时，实际上是指沿每一行来查找最大值的索引，即在每一行内部查找最大值。
+
+**示例解释：**
+
+```python
+x = torch.tensor([[1, 2, 3], [4, 5, 6]])
+max_indices = torch.argmax(x, dim=1)
+print(max_indices)
+```
+
+- `dim=1` 表示在每一行查找最大值的索引。
+- 第一行 `[1, 2, 3]` 中，最大值是 `3`，它的索引是 `2`。
+- 第二行 `[4, 5, 6]` 中，最大值是 `6`，它的索引是 `2`。
+
+因此，输出结果是 `[2, 2]`，表示每一行中最大值的索引。
+
+**小结：**
+
+- `dim=0`：沿着行方向查找最大值的索引。
+- `dim=1`：沿着列方向查找最大值的索引（即对每一行查找最大值）。
+
 ### tensor.transpose()
 
 **transpose**函数的基本操作是接收两个维度**dim1**和**dim2**，并将这两个维度的内容进行调换。无论**dim1**和**dim2**的顺序如何，结果都是相同的。例如，对于一个二维张量*a*，可以使用**a.transpose(0,1)**或**a.transpose(1,0)**来交换其两个维度的内容。这个函数也可以通过**torch.transpose(tensor, dim1, dim2)**的方式调用。
@@ -465,25 +507,43 @@ print(z.shape)  # 输出：torch.Size([6, 4])
 
 ### tensor.grad
 
+**tensor张量的梯度**
+
+**冻结层参数**：
+在迁移学习中，常常将预训练模型的部分层的 `requires_grad` 设置为 `False`，以避免更新这些层的参数。
+
 ### tensor.grad_fn
 
-**梯度函数，grad_function**
+`tensor.grad_fn` 是 PyTorch 中一个与自动微分相关的重要属性。它存储了生成此 `tensor` 的**最后一个操作的梯度函数**，用于追踪和计算该张量的反向传播路径。
 
-grad_fn 属性是 PyTorch 中的一个重要特性，它保存了张量的梯度函数，用于计算当前张量相对于计算图中其他张量的梯度。
+当你对一个张量进行一系列运算（如加法、乘法等）时，PyTorch 会自动建立一个计算图，其中每个节点代表一个操作（operation），每个边代表数据流动的方向。这张计算图被用于反向传播，以便计算每个张量对最终损失的梯度。
 
-**grad_fn**: **叶子节点**通常为None，只有结果节点的**grad_fn**才有效，用于指示梯度函数是哪种类型。
+`grad_fn` 表示梯度函数：
+`grad_fn` 属性是一个**函数节点**，它保存了生成该张量的最后一个操作的相关信息（例如，`AddBackward0`、`MulBackward0`）。这些 `Backward` 类别表示的是反向传播的类型，具体和该张量的生成操作相关。
 
-通过张量的 `grad_fn` 属性来检查它的计算历史。`grad_fn` 表示创建该张量的函数，只有当张量是通过某些操作得到的中间张量时，`grad_fn` 才不为 None。
+**自动计算图**：
+PyTorch 自动追踪每个操作以建立计算图。当你对一个带有 `requires_grad=True` 的张量进行运算时，计算图会自动扩展，并记录每个运算的 `grad_fn`。在反向传播时，PyTorch 会使用这个计算图，从输出节点沿反向路径计算梯度。
 
-### tensor.grad_fn.next_functions()
+**只有通过运算生成的张量才有 `grad_fn`**：
+原始的叶子节点张量（即直接创建、没有依赖任何其他张量的张量，如 `x = torch.tensor([1.0], requires_grad=True)`）的 `grad_fn` 为 `None`。这是因为叶子节点本身并不是由任何运算产生的。
+
+### tensor.grad_fn.next_functions
 
 ### tensor.requires_grad
+
+`tensor.requires_grad` 是 PyTorch 中的一个属性，表示该张量是否需要进行梯度计算。在深度学习中，如果我们需要对某个张量执行反向传播并计算其梯度，就需要将这个属性设置为 `True`。
+
+`tensor.requires_grad` 是 PyTorch 中张量（`Tensor`）的一个属性，用于控制是否启用自动求导（autograd）功能。这个属性的值决定了 PyTorch 是否为该张量构建计算图，以便在进行反向传播时计算梯度。
+
+- `requires_grad=True`: 如果设置为 `True`，则会启用对该张量的自动求导功能。这意味着，该张量将被包含在计算图中，任何通过这个张量进行的操作都会被追踪，最终可以通过 `.backward()` 方法计算梯度。
+
+- `requires_grad=False`: 如果设置为 `False`，则该张量不会在计算图中进行追踪，也不会计算梯度。通常情况下，数据输入或中间结果的张量会将 `requires_grad` 设置为 `False`，只有当需要进行反向传播时，才会显式地设置为 `True`。
 
 ### tensor模型的计算图
 
 **对应的是grad_fn和function**
 
-在 PyTorch 中，*grad_fn* 属性是动态计算图的关键部分，也是 PyTorch 的关键功能之一。与 TensorFlow 等其他使用静态计算图的深度学习框架不同，PyTorch 根据实际代码执行情况动态构建计算图。这种动态特性允许在每次迭代或运行期间根据不同的输入数据调整和创建计算图
+在 PyTorch 中，**grad_fn** 属性是动态计算图的关键部分，也是 PyTorch 的关键功能之一。与 TensorFlow 等其他使用静态计算图的深度学习框架不同，PyTorch 根据实际代码执行情况动态构建计算图。这种动态特性允许在每次迭代或运行期间根据不同的输入数据调整和创建计算图
 
 ## torch.nn
 
@@ -580,6 +640,8 @@ features.7.bias: False
 for name, param in model.named_parameters():
     print(f"{name}: {param.requires_grad}")
 ```
+
+## 切片(Slice)
 
 ## 模块的概念
 
@@ -681,7 +743,7 @@ print("Binomial Distribution:", binomial_dist)
 
 ## 引用模块函数
 
-在普通的 Python 文件中，可以通过定义函数并在文件中调用它们，或者从其他文件中引用这些函数。下面是两种常见的方法：
+在普通的 Python 文件中，可以通过定义函数并在文件中调用它们，或者从其他文件中引用这些函数。下面是三种常见的方法：
 
 ### 1. 定义和调用函数
 
@@ -816,7 +878,7 @@ print(squared_evens)  # 输出: [4, 16, 36]
 
 在这个示例中，`squared_evens` 列表只包含了 `numbers` 列表中的偶数的平方。
 
-## // 整除除法
+## 整除除法//
 
 在 `torch` 中，`//` 表示 **整数除法**（也称为**地板除法**），它会将除法的结果向下取整到最接近的整数。例如：
 

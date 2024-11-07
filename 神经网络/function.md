@@ -470,6 +470,74 @@ print([row[::2] for row in matrix[:3]])  # 输出: [[0, 2], [3, 5], [6, 8]]
 
 ## torch
 
+### torch的切片
+
+在 PyTorch 中，张量（Tensor）的切片操作与 NumPy 的数组切片方式类似，但也有其独特之处。通过切片可以灵活地访问张量的某些部分，支持基本的切片、步长切片、索引切片以及高级索引。
+
+1. **基本切片**
+
+基本切片是通过索引和冒号（`:`）操作符进行的，可以访问张量的某一维或多个维度。
+
+**示例：**
+
+```python
+import torch
+
+# 创建一个 3x3 张量
+tensor = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+
+# 选择第一行
+print(tensor[0])  # 输出: tensor([1, 2, 3])
+
+# 选择第一列
+print(tensor[:, 0])  # 输出: tensor([1, 4, 7])
+
+# 选择张量的中心元素
+print(tensor[1, 1])  # 输出: tensor(5)
+
+# 选择子张量（例如，前两行的前两列）
+print(tensor[:2, :2])  # 输出: tensor([[1, 2], [4, 5]])
+```
+
+**解析：**
+
+- `tensor[0]`：获取第一行。
+- `tensor[:, 0]`：使用冒号（`:`）表示获取所有行，指定列索引 `0` 来获取第一列。
+- `tensor[1, 1]`：指定行索引和列索引，直接获取特定元素。
+- `tensor[:2, :2]`：从前两行、前两列中获取子张量。
+
+2. **步长切片**
+
+可以通过在冒号切片中使用步长（`start:stop:step`）来跳过元素进行切片。
+
+**示例：**
+
+```python
+# 使用步长切片
+print(tensor[::2, ::2])  # 输出: tensor([[1, 3], [7, 9]])
+
+# 获取每一行的倒数第二个元素
+print(tensor[:, :-1])  # 输出: tensor([[1, 2], [4, 5], [7, 8]])
+```
+
+**解析：**
+
+- `tensor[::2, ::2]`：第一个冒号 `::2` 表示每隔一行取一个元素，第二个 `::2` 表示每隔一列取一个元素。
+- `tensor[:, :-1]`：省略 `stop`，从起始元素到倒数第二个元素，等价于 `tensor[:, 0:-1]`。
+
+3. **使用 `...`（省略）操作符**
+
+如果张量有较多的维度，可以用 `...` 代表多个维度以简化操作。
+
+**示例：**
+
+```python
+tensor3d = torch.randn(2, 3, 4)
+
+# 使用 ... 获取最后一个维度上的切片
+print(tensor3d[..., 0])  # 输出: 获取最后一个维度的第一个元素
+```
+
 ### torch.float64
 
 `torch.float64` 是 PyTorch 中的一个**对象**，而不是一个类。它是 `torch.dtype` 类的一个实例，表示 PyTorch 的浮点数数据类型（双精度浮点数，即 64 位浮点数）。
@@ -672,6 +740,23 @@ print(y.shape)  # 输出：torch.Size([6, 4])
 ```
 
    - **注意**：如果你在某些操作后发现 `view()` 抛出错误，可以先调用 `x = x.contiguous()`，使张量变为连续。
+
+`view(-1, 2)` 是一种重新调整张量形状的方法，它会将一个张量变成两列 (`2` 表示列的数目)，而行数则由 PyTorch 自动推断。
+
+假设我们有一个形状为 `(4, 4)` 的张量，其中包含 `4 * 4 = 16` 个元素，我们可以使用 `view(-1, 2)` 将其调整为有两列的张量。
+
+```python
+import torch
+
+# 创建一个 4x4 张量
+tensor = torch.arange(16).view(4, 4)
+print("Original tensor shape:", tensor.shape)
+
+# 使用 view(-1, 2)
+reshaped_tensor = tensor.view(-1, 2)
+print("Reshaped tensor shape:", reshaped_tensor.shape)
+print(reshaped_tensor)
+```
 
 ### tensor.reshape()
    - **用途**：同样用于调整张量形状，但不要求张量在内存中是连续的。

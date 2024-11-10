@@ -956,9 +956,9 @@ tensor([[-0.8067, -0.0707, -0.6682],
 ```python
 shape = (3, 4)
 torch.randn(*shape)  # 等同于 torch.randn(3, 4)
-
-numpy.array(shape)  # 等同于 List [3 4]
 ```
+
+在 `torch.randn(*shape)` 中，星号 (`*`) 是 Python 中的“解包”操作符。它的作用是将一个可迭代对象（如列表或元组）中的元素逐一提取出来，作为单独的参数传递给函数。
 
 ### torch.randint()
 

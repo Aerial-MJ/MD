@@ -31,6 +31,10 @@ print(type(z))  # 输出: <class 'list'>
 
 **(NumPy 的 N 维数组对象 ndarray，它是一系列同类型数据的集合)**
 
+
+
+## Tensor<->List
+
 - **list->tensor**
 
 ```
@@ -62,7 +66,7 @@ print(my_list)
 
 
 
-
+## Numpy<->Tensor
 
 - **numpy->tensor**
 
@@ -110,7 +114,53 @@ print(np_from_tensor_gpu)
 # 输出: array([1, 2, 3, 4])
 ```
 
+在 PyTorch 中，`.cpu()` 和 `.detach()` 是两个常用的方法，分别用于将张量转移到 CPU 设备以及从计算图中分离张量。下面是它们的具体用途和差异：
 
+1. `.cpu()`
+
+`.cpu()` 方法用于将张量从当前设备转移到 CPU 内存中。这个方法在使用 GPU 加速的情况下特别常用，例如当我们在 GPU 上训练模型，但希望将结果转回 CPU，以便进行后续处理或显示。
+
+- **用法**：
+  
+  ```python
+  tensor = torch.randn(3, 3, device='cuda')  # 创建在 GPU 上的张量
+  tensor_cpu = tensor.cpu()  # 转移到 CPU
+  ```
+  
+- **作用**：
+  - 将张量从 GPU 转移到 CPU（如果已经在 CPU 上，则没有效果）。
+  - 在进行某些非 GPU 支持的操作（如与 NumPy 兼容的操作）时，通常需要将张量放在 CPU 上。
+
+2. `.detach()`
+
+`.detach()` 方法用于从计算图中分离张量，以防止其在反向传播中产生梯度。这对于只需要张量值，但不希望影响梯度计算的情况很有用，例如在模型推理或记录中间输出时。
+
+- **用法**：
+  
+  ```python
+  tensor = torch.randn(3, 3, requires_grad=True)  # 需要梯度的张量
+  detached_tensor = tensor.detach()  # 分离张量，不再跟踪梯度
+  ```
+  
+- **作用**：
+  - 生成一个新的张量，与原始张量共享数据存储，但不会被纳入自动微分的计算图中。
+  - 不会对原始张量的梯度计算产生影响，适用于只需要前向值、不希望记录梯度的场景。
+  
+
+**组合使用**
+
+在模型推理或记录输出时，常会组合 `.cpu()` 和 `.detach()` 方法。例如：
+
+```python
+output = model(input)  # 假设 output 是 GPU 上的张量
+output_cpu = output.detach().cpu()  # 分离计算图并转移到 CPU
+```
+
+这种组合能有效地将张量移至 CPU，且保证该张量不会在反向传播中被计算。
+
+
+
+## List<->Numpy
 
 -  **List 转 NumPy 数组**
 
@@ -613,7 +663,7 @@ print(x.shape)  # 输出：torch.Size([3, 4, 5])
 
 ### tensor.to()
 
-**torch.device("cuda:0")="cuda:0"**
+**torch.device("cuda:0")     =   "cuda:0"**
 
 ```python
 >>> tensor = torch.randn(2, 2)  # Initially dtype=float32, device=cpu
@@ -640,7 +690,31 @@ tensor = torch.tensor([1.2, 3.4, 5.6])
 # 转换为整型
 tensor_int = tensor.to(torch.int)
 print(tensor_int)
+
+tensor = torch.randn(3, 3)
+tensor_gpu = tensor.to('cuda')  # 将张量转移到 GPU
+tensor_cpu = tensor.to('cpu')   # 将张量转移回 CPU
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+tensor = tensor.to(device)
 ```
+
+`.cuda()` 方法
+
+`.cuda()` 方法专门用于将张量或模型转移到 GPU。它默认使用设备 `cuda:0`（即第一个 GPU），但也可以通过传入索引来指定不同的 GPU。
+
+- 用法：
+
+  ```python
+  tensor = torch.randn(3, 3)
+  tensor_gpu = tensor.cuda()         # 将张量转移到默认 GPU（cuda:0）
+  tensor_gpu1 = tensor.cuda(1)       # 将张量转移到第 1 个 GPU（cuda:1）
+  ```
+
+`.to()` vs `.cuda()`
+
+- `.to()` 更通用，可以指定任意设备（`cpu` 或 `cuda`），而 `.cuda()` 只能用于 GPU。
+- `.cuda()` 更适合于需要代码在 GPU 和 CPU 之间兼容的场景。
 
 ### tensor.type()
 
@@ -830,6 +904,92 @@ torch.flatten(input, start_dim, end_dim=-1)
 2. **结果形状**：
    - 输入张量 `x` 的形状是 `(batch_size, channels, height, width)`。
    - 经过 `torch.flatten(x, 1)` 后，输出张量的形状变为 `(batch_size, channels * height * width)`。
+
+### torch.rand()
+
+- **功能**：生成在 `[0, 1)` 区间内均匀分布的随机数。
+
+- **用法**：`torch.rand(*size)`，其中 `size` 是张量的维度。
+
+- **示例**：
+
+  ```python
+  tensor = torch.rand(3, 3)  # 生成 3x3 的张量，每个元素在 [0, 1) 范围内
+  print(tensor)
+  ```
+
+  **输出示例**（随机）：
+
+  ```lua
+  tensor([[0.5125, 0.3456, 0.8765],
+          [0.1523, 0.9524, 0.3412],
+          [0.4261, 0.0012, 0.7634]])
+  ```
+
+### torch.randn()
+
+**功能**：生成符合 **标准正态分布**（均值为 0，标准差为 1）的随机数。
+
+**用法**：`torch.randn(*size)`，其中 `size` 是张量的维度。
+
+`torch.randn` 用于创建一个符合标准正态分布（均值为 0，标准差为 1）的 Tensor。
+
+**代码示例：**
+
+```python
+import torch
+
+# 创建一个 2x3 的符合标准正态分布的 Tensor
+a = torch.randn(2, 3)
+print(a)
+```
+
+**输出结果：**
+
+```python
+tensor([[-0.8067, -0.0707, -0.6682],
+        [ 0.8141,  1.1436,  0.5963]])
+```
+
+**传入一个包含形状的元组**：如果需要动态地指定张量的形状，可以传入一个元组作为参数，例如：
+
+```python
+shape = (3, 4)
+torch.randn(*shape)  # 等同于 torch.randn(3, 4)
+
+numpy.array(shape)  # 等同于 List [3 4]
+```
+
+### torch.randint()
+
+- **功能**：生成在指定区间 `[low, high)` 内的随机整数。
+
+- **用法**：`torch.randint(low, high, size)`，其中 `low` 是最小值（包含），`high` 是最大值（不包含），`size` 是张量的维度。
+
+- **示例**：
+
+  ```python
+  tensor = torch.randint(0, 10, (3, 3))  # 生成 3x3 的张量，每个元素是 0 到 9 之间的整数
+  print(tensor)
+  ```
+
+  **输出示例**（随机）：
+
+  ```lua
+  tensor([[5, 1, 8],
+          [7, 3, 0],
+          [9, 4, 2]])
+  ```
+
+| 方法            | 分布类型     | 数值范围      | 示例用途               |
+| --------------- | ------------ | ------------- | ---------------------- |
+| `torch.rand`    | 均匀分布     | `[0, 1)`      | 初始化权重             |
+| `torch.randn`   | 标准正态分布 | `(-∞, +∞)`    | 添加噪声、初始化权重   |
+| `torch.randint` | 整数均匀分布 | `[low, high)` | 生成离散标签、随机索引 |
+
+这三个方法根据需求生成不同类型的随机数，用于初始化、生成随机样本或标签等。
+
+
 
 ## tensor autograd
 
@@ -1037,7 +1197,6 @@ print("Random Integers:", random_integers)
 #### 2. **随机采样**
 
 - `numpy.random.choice(a, size=None, replace=True, p=None)`：从数组 `a` 中随机采样，返回指定大小的数组。
-  
 
 **示例**：
 

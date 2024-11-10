@@ -241,3 +241,168 @@ make_dot(m).render("test6")
 因此，**分类器包含线性部分**，并且通常在后面加一个非线性激活函数来得到类别概率。
 
 总结来说，分类器是神经网络中最后一层的组件，它包括了线性变换（通过全连接层）和非线性激活函数（如softmax）。
+
+## Dataset和DataLoader
+
+在 PyTorch 中，`Dataset` 和 `DataLoader` 是两个用于处理和加载数据的核心类，主要用于模型的训练和测试。它们相互配合，通过 `Dataset` 来定义和处理数据，再通过 `DataLoader` 进行批次加载、打乱顺序和多线程并行化。
+
+1. `Dataset`
+
+`Dataset` 是 PyTorch 的一个抽象类，用于表示数据集。它主要用于定义数据的获取方式和数据预处理逻辑。自定义数据集时通常需要继承 `Dataset` 类，并实现其中的两个核心方法 `__len__` 和 `__getitem__`：
+
+- **`__len__`**：返回数据集中样本的数量。
+- **`__getitem__`**：根据给定的索引返回对应的数据样本。
+
+自定义 `Dataset` 示例
+
+```python
+import torch
+from torch.utils.data import Dataset
+
+class MyDataset(Dataset):
+    def __init__(self, data, labels):
+        self.data = data
+        self.labels = labels
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx], self.labels[idx]
+
+# 创建示例数据
+data = torch.randn(100, 3, 32, 32)  # 100 个 3x32x32 的图像
+labels = torch.randint(0, 10, (100,))  # 100 个标签，范围在 0 到 9 之间
+
+dataset = MyDataset(data, labels)
+```
+
+在这个例子中，我们定义了一个简单的 `MyDataset` 类来加载图像和标签。
+
+2. `DataLoader`
+
+**DataLoader的数据是\_\_getitem\_\_出来的数据**
+
+`DataLoader` 是一个用于封装 `Dataset` 的类，提供批量加载数据、打乱数据和并行处理等功能。它非常适合在训练过程中分批次加载数据，同时支持多线程来加速数据处理。
+
+常用参数
+
+- **`dataset`**：要加载的数据集（`Dataset` 对象）。
+- **`batch_size`**：每个批次的样本数量。
+- **`shuffle`**：是否在每个 epoch 开始时打乱数据。
+- **`num_workers`**：用于加载数据的子进程数。多进程可以加快数据加载速度，尤其是数据量大或预处理较多时。
+
+使用示例
+
+```python
+from torch.utils.data import DataLoader
+
+# 创建 DataLoader，设置 batch_size=16 和 shuffle=True
+dataloader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=2)
+
+# 迭代 DataLoader
+for batch_data, batch_labels in dataloader:
+    # batch_data 和 batch_labels 是 16 个样本的批次
+    print(batch_data.shape, batch_labels.shape)
+```
+
+在这个例子中，`DataLoader` 会按每批 16 个样本的形式加载数据，并在每个 epoch 开始时打乱数据。
+
+`Dataset` 和 `DataLoader` 的关系
+
+- **`Dataset`**：定义了数据的存储方式和获取方法，负责数据的组织和预处理。
+- **`DataLoader`**：用于从 `Dataset` 中批量读取数据，并提供批次、打乱和多线程支持。
+
+通过结合 `Dataset` 和 `DataLoader`，我们可以有效地管理和处理大规模数据，为模型训练提供高效的数据加载管道。
+
+**dataset 存储了我的数据，怎么把数据规整的拿出来需要使用到dataloader进行封装**
+
+## (100,)
+
+在 PyTorch 中，`torch.randint(0, 10, (100,))` 是一个生成随机整数张量的方法。让我们分解这个函数的参数：
+
+```python
+torch.randint(0, 10, (100,))
+```
+
+- **0**：表示生成的随机整数的下限（包含 0），这是生成整数的最小值。
+- **10**：表示生成的随机整数的上限（不包含 10），这是生成整数的最大值，即整数的范围为 `[0, 10)`。
+- **(100,)**：表示生成张量的形状，这里 `(100,)` 是一个单元素的元组，表示生成一个长度为 100 的一维张量。
+
+因此，`torch.randint(0, 10, (100,))` 会生成一个包含 100 个随机整数的张量，这些整数在 `[0, 10)` 的范围内，也就是说，每个整数的可能取值是 `0` 到 `9`。 
+
+**例子**
+
+```python
+import torch
+
+# 生成一个包含 100 个随机整数的张量，每个整数在 0 到 9 之间
+random_tensor = torch.randint(0, 10, (100,))
+
+print(random_tensor)
+```
+
+这段代码的输出将类似于：
+
+```
+tensor([3, 7, 1, 9, 0, 5, 6, ...])
+```
+
+**总结**
+
+`torch.randint(0, 10, (100,))` 创建了一个长度为 100 的一维张量，其中每个元素都是一个随机整数，取值范围在 0 到 9 之间。
+
+---
+
+在 Python 中，`(100,)` 是一个包含单个元素的 **一维元组**。这里的逗号是必要的，因为没有逗号的话，Python 会把它当作普通整数，而不是元组。
+
+**举例说明**
+
+- **没有逗号的情况**：`(100)` 是一个普通整数括号表达式，等价于 `100`。
+- **有逗号的情况**：`(100,)` 是一个包含单个元素的元组。
+
+可以通过以下代码来验证：
+
+```python
+print(type((100)))   # 输出 <class 'int'>
+print(type((100,)))  # 输出 <class 'tuple'>
+```
+
+因此，在 PyTorch 中指定形状时，`(100,)` 表示一个一维张量，而不是简单的整数 `100`。 
+
+**为什么在 PyTorch 中使用元组**
+
+在 PyTorch 中，形状参数通常是元组，因为张量可以有多个维度。即使是单维度的张量，形状参数也需要是元组的形式。例如：
+
+```python
+# 一维张量
+tensor_1d = torch.randint(0, 10, (100,))  # 形状 (100,)
+
+# 二维张量
+tensor_2d = torch.randint(0, 10, (100, 50))  # 形状 (100, 50)
+```
+
+所以，写作 `(100,)` 是一种保持一致性的方式，即使只有一个维度时，形状依然是一个元组。
+
+---
+
+在 Python 中，`[100]` 和 `[100,]` 是等价的，二者都是包含一个元素的列表，并不会因为逗号的存在而有所不同。
+
+让我们来验证一下：
+
+```python
+print(type([100]))   # 输出：<class 'list'>
+print(type([100,]))  # 输出：<class 'list'>
+```
+
+**解释**
+
+- 在列表中，写作 `[100]` 和 `[100,]` 都表示包含单个元素 `100` 的列表。
+- 列表中的逗号在元素数量上没有特别的意义，因此在列表中添加逗号不会影响数据结构或类型。只要元素用方括号 `[]` 包围，Python 就会将它识别为 `list` 类型。
+
+这与元组有所不同。在元组中，为了区分单个元素和括号表达式，必须加上逗号，如 `(100,)` 表示一个包含 `100` 的元组，而 `(100)` 只是数值 `100` 的括号表达式。
+
+**总结**
+
+- `[100]` 和 `[100,]` 是完全等价的，都是包含单个元素的列表，类型均为 `list`。
+- 在列表中，逗号并不影响数据结构；而在元组中，逗号对单元素元组的定义是必须的。

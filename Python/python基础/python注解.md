@@ -223,6 +223,7 @@ for value in gen:
 生成器表达式类似于列表推导式，但使用圆括号 `()` 而不是方括号 `[]`，从而返回一个生成器对象。
 
 **示例**：
+
 ```python
 gen = (x ** 2 for x in range(5))
 for value in gen:
@@ -254,6 +255,16 @@ squares_gen = (x ** 2 for x in range(1000000))  # 生成器，按需生成，节
 ```
 
 在这种情况下，`squares_list` 会占用更多内存，而 `squares_gen` 几乎不占用内存，只有在每次迭代时才计算一个新的平方值。
+
+```lua
+# tensor1 = torch.randn(gen)
+#TypeError: randn(): argument 'size' (position 1) must be tuple of ints, not generator
+# print(tensor1)
+
+print(type((row[::2] for row in matrix[:3]))) <class 'generator'>
+print(type(row[::2] for row in matrix[:3]))   <class 'generator'>
+print(type([row[::2] for row in matrix[:3]])) <class 'list'>
+```
 
 ### 4. 使用生成器的场景
 - **大数据处理**：需要处理大量数据时，用生成器可以避免一次性将数据加载到内存中。

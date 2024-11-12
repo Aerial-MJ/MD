@@ -905,6 +905,107 @@ torch.flatten(input, start_dim, end_dim=-1)
    - 输入张量 `x` 的形状是 `(batch_size, channels, height, width)`。
    - 经过 `torch.flatten(x, 1)` 后，输出张量的形状变为 `(batch_size, channels * height * width)`。
 
+### torch.clip()
+
+在 PyTorch 中，`torch.clip` 函数用于将一个张量的值限制在给定的最小值和最大值之间，通常用于避免数值溢出或者是裁剪梯度。其用法类似于 `torch.clamp` 函数，`torch.clip` 是 `torch.clamp` 的一个别名。
+
+```python
+torch.clip(input, min=None, max=None, out=None)
+```
+
+**参数说明**
+
+`input`：需要裁剪的张量。
+
+`min`：裁剪的最小值（可以为 `None`，如果为 `None` 则不限制最小值）。
+
+`max`：裁剪的最大值（可以为 `None`，如果为 `None` 则不限制最大值）。
+
+`out`：可选参数，将输出结果存储到一个特定的张量中。
+
+**返回值**
+
+返回裁剪后的张量，每个值都在 `[min, max]` 范围内。
+
+```python
+import torch
+
+# 创建一个张量
+x = torch.tensor([1.5, 2.8, -1.2, 3.9, 0.5])
+
+# 将值裁剪到 [0, 2] 的范围内
+y = torch.clip(x, min=0, max=2)
+print(y)
+# 输出: tensor([1.5000, 2.0000, 0.0000, 2.0000, 0.5000])
+
+
+torch.clip()
+torch.clamp()#类似于
+np.clip()
+```
+
+### torch.flip()
+
+`torch.flip` 是 PyTorch 提供的一个用于翻转张量的函数。它能够在指定的维度上对张量进行反转操作，这在图像处理等场景中十分常见。翻转操作会返回一个新的张量，而不会改变原始张量的数据。
+
+**语法**
+
+```python
+torch.flip(input, dims)
+```
+
+- **`input`**: 要翻转的输入张量。
+- **`dims`**: 需要进行翻转的维度列表。可以同时指定多个维度。
+
+**参数说明**
+
+- `dims` 参数是一个列表，指定了需要反转的维度索引。例如：
+  - 若 `dims=[0]`，表示只在第0维（行）上进行翻转。
+  - 若 `dims=[1]`，表示只在第1维（列）上进行翻转。
+  - 若 `dims=[0, 1]`，则会同时在行和列两个维度上翻转，类似对矩阵进行了 180° 旋转。
+
+```python
+import torch
+
+# 创建一个 3x3 的张量
+x = torch.tensor([[1, 2, 3],
+                  [4, 5, 6],
+                  [7, 8, 9]])
+
+# 在第 0 维上翻转
+x_flip0 = torch.flip(x, [0])
+print(x_flip0)
+# 输出：
+# tensor([[7, 8, 9],
+#         [4, 5, 6],
+#         [1, 2, 3]])
+
+# 在第 1 维上翻转
+x_flip1 = torch.flip(x, [1])
+print(x_flip1)
+# 输出：
+# tensor([[3, 2, 1],
+#         [6, 5, 4],
+#         [9, 8, 7]])
+
+# 同时在第 0 和第 1 维上翻转
+x_flip01 = torch.flip(x, [0, 1])
+print(x_flip01)
+# 输出：
+# tensor([[9, 8, 7],
+#         [6, 5, 4],
+#         [3, 2, 1]])
+```
+
+**注意事项**
+
+- `torch.flip` 适用于任意维度的张量。它不会改变原始张量的形状，但会在指定维度上反转数据。
+- 由于 `torch.flip` 返回的是新的张量，因此如果不将结果赋值给新的变量，原始张量不会发生变化。
+
+**应用场景**
+
+`torch.flip` 通常用于数据增强（如图像左右翻转）或其他需要对张量内容进行翻转操作的场景中。在深度学习中的数据预处理、数据增强、以及数据分析中非常常见。
+
 ### torch.rand()
 
 - **功能**：生成在 `[0, 1)` 区间内均匀分布的随机数。

@@ -241,7 +241,9 @@ data = np.clip(data, -3, 2)
 
 ### np.hstack()
 
-按水平方向（列顺序）堆叠数组构成一个新的数组。堆叠的数组需要具有相同的维度
+**horizontal**
+
+按水平方向堆叠数组构成一个新的数组。堆叠的数组需要具有相同的维度
 
 ```python
 import numpy as np
@@ -257,7 +259,9 @@ print(result) # 输出: [1 2 3 4 5 6]
 
 ### np.vstack()
 
-按垂直方向（行顺序）堆叠数组构成一个新的数组。堆叠的数组需要具有相同的维度
+**vertical**
+
+按垂直方向堆叠数组构成一个新的数组。堆叠的数组需要具有相同的维度
 
 ### ndarray.astype()
 
@@ -312,6 +316,13 @@ print(y)  # 输出：[1 0 2 0 3 0 4 0]
    - `view()`：用于创建相同数据的不同视图，通常用于更改数据类型或重新解释数据内容，而不改变形状。
 
 在 `numpy` 中，`reshape()` 用于改变数组的形状，而 `view()` 更适合数据类型转换或重解读。
+
+观察到的结果是因为 `view()` 不改变数据，只是用目标数据类型来解释原始字节。而这些整数的二进制格式在 `float32` 解释下，变成了非常小的浮点值。
+
+要避免这种混淆：
+
+- **使用 `astype()`**：当需要实际转换为新类型时。
+- **使用 `view()`**：当你明确需要重新解释数据的字节时。
 
 ### numpy的切片
 
@@ -423,6 +434,8 @@ print(arr_3d[0:2, 0:1, :])  # 输出：
 
 你可以通过步长 `-1` 来反向切片数组。
 
+**torch的切片不行**
+
 ```python
 arr = np.array([10, 20, 30, 40, 50])
 
@@ -466,6 +479,172 @@ print(second_row)
 **总结**
 
 在 NumPy 中，切片操作非常灵活，可以根据不同需求对一维、二维及更高维的数组进行访问和修改。切片的关键是掌握如何操作 `start`、`stop` 和 `step` 参数，以及如何在不同维度上进行切片。
+
+### Numpy的拼接
+
+在 NumPy 中，拼接数组通常使用 `numpy.concatenate()`、`numpy.vstack()`、`numpy.hstack()` 和 `numpy.stack()` 等函数。下面是这些函数的详细说明和示例。
+
+**1. 使用 `numpy.concatenate()`**
+
+`numpy.concatenate()` 用于在指定轴上拼接两个或多个数组。你可以选择沿着任意轴拼接（`axis=0` 为行，`axis=1` 为列）。
+
+**语法**:
+
+```python
+numpy.concatenate((a1, a2, ...), axis=0, out=None)
+```
+- `a1, a2, ...`：待拼接的数组。
+- `axis`：拼接的轴，默认为 0，表示沿着第一个轴（行）拼接。
+
+**示例**:
+```python
+import numpy as np
+
+# 创建两个二维数组
+array1 = np.array([[1, 2, 3], [4, 5, 6]])
+array2 = np.array([[7, 8, 9], [10, 11, 12]])
+
+# 在第0轴（行方向）拼接
+result = np.concatenate((array1, array2), axis=0)
+print(result)
+# 输出:
+# [[ 1  2  3]
+#  [ 4  5  6]
+#  [ 7  8  9]
+#  [10 11 12]]
+
+# 在第1轴（列方向）拼接
+result = np.concatenate((array1, array2), axis=1)
+print(result)
+# 输出:
+# [[ 1  2  3  7  8  9]
+#  [ 4  5  6 10 11 12]]
+```
+
+**2. 使用 `numpy.vstack()`**
+
+`numpy.vstack()` 是 `numpy.concatenate()` 的一种简化形式，专门用于沿着垂直（行）方向堆叠数组。
+
+**语法**:
+```python
+numpy.vstack(tup)
+```
+- `tup`：一个数组序列，必须具有相同数量的列。
+
+**示例**:
+```python
+import numpy as np
+
+# 创建两个二维数组
+array1 = np.array([1, 2, 3])
+array2 = np.array([4, 5, 6])
+
+# 垂直堆叠
+result = np.vstack((array1, array2))
+print(result)
+# 输出:
+# [[1 2 3]
+#  [4 5 6]]
+```
+
+**3. 使用 `numpy.hstack()`**
+
+`numpy.hstack()` 是 `numpy.concatenate()` 的另一种简化形式，专门用于沿着水平方向（列）堆叠数组。
+
+**语法**:
+```python
+numpy.hstack(tup)
+```
+- `tup`：一个数组序列，必须具有相同数量的行。
+
+**示例**:
+```python
+import numpy as np
+
+# 创建两个二维数组
+array1 = np.array([1, 2, 3])
+array2 = np.array([4, 5, 6])
+
+# 水平堆叠
+result = np.hstack((array1, array2))
+print(result)
+# 输出:
+# [1 2 3 4 5 6]
+```
+
+**4. 使用 `numpy.stack()`**
+
+`numpy.stack()` 用于沿着新轴堆叠数组。它会在指定的轴位置插入一个新的维度。**会增加维度**
+
+**语法**:
+```python
+numpy.stack(arrays, axis=0)
+```
+- `arrays`：一个数组序列，必须具有相同的形状。
+- `axis`：沿着哪一维度插入新轴。
+
+**示例**:
+```python
+import numpy as np
+
+# 创建两个二维数组
+array1 = np.array([1, 2, 3])
+array2 = np.array([4, 5, 6])
+
+# 沿着新轴（axis=0）堆叠
+result = np.stack((array1, array2), axis=0)
+print(result)
+# 输出:
+# [[1 2 3]
+#  [4 5 6]]
+
+# 沿着新轴（axis=1）堆叠
+result = np.stack((array1, array2), axis=1)
+print(result)
+# 输出:
+# [[1 4]
+#  [2 5]
+#  [3 6]]
+```
+
+**5. 使用 `numpy.dstack()`**
+
+`numpy.dstack()` 是用于沿着第三个维度（深度）拼接数组。它会在最后一个轴上进行堆叠。
+
+**语法**:
+```python
+numpy.dstack(tup)
+```
+- `tup`：一个数组序列，必须具有相同的形状。
+
+**示例**:
+```python
+import numpy as np
+
+# 创建两个二维数组
+array1 = np.array([[1, 2], [3, 4]])
+array2 = np.array([[5, 6], [7, 8]])
+
+# 沿着深度方向拼接
+result = np.dstack((array1, array2))
+print(result)
+# 输出:
+# [[[1 5]
+#   [2 6]]
+#
+#  [[3 7]
+#   [4 8]]]
+```
+
+**总结**
+
+- **`numpy.concatenate()`**：在指定轴上拼接数组。
+- **`numpy.vstack()`**：垂直拼接（沿着第0轴堆叠）。
+- **`numpy.hstack()`**：水平拼接（沿着第1轴堆叠）。
+- **`numpy.stack()`**：在指定轴插入一个新的维度来拼接数组。
+- **`numpy.dstack()`**：沿着第三个维度拼接数组。
+
+选择合适的方法取决于你希望在什么轴上拼接或堆叠数组，`concatenate` 和 `stack` 更加通用，而 `vstack`、`hstack` 和 `dstack` 是针对特定方向的简化版本。
 
 ## list
 
@@ -518,6 +697,120 @@ print(matrix[1][:2])  # 输出: [3, 4]
 print([row[::2] for row in matrix[:3]])  # 输出: [[0, 2], [3, 5], [6, 8]]
 ```
 
+### list的拼接
+
+在 Python 中，拼接列表有多种方法。以下是几种常见的列表拼接方法：
+
+1. **使用 `+` 运算符**
+
+`+` 运算符可以用来拼接两个或多个列表，返回一个新的列表。
+
+**示例**:
+```python
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+
+# 拼接两个列表
+result = list1 + list2
+print(result)  # 输出: [1, 2, 3, 4, 5, 6]
+```
+
+2. **使用 `extend()` 方法**
+
+`extend()` 方法将一个列表中的元素逐个添加到另一个列表的末尾。该方法会修改原始列表，返回 `None`。
+
+**示例**:
+```python
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+
+# 将 list2 中的元素添加到 list1 中
+list1.extend(list2)
+print(list1)  # 输出: [1, 2, 3, 4, 5, 6]
+```
+
+3. **使用 `append()` 方法（逐个元素添加）**
+
+`append()` 方法将单个元素添加到列表的末尾。如果需要逐个拼接多个元素（而不是整个列表），可以使用 `append()` 方法。
+
+**示例**:
+```python
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+
+# 使用 append() 逐个添加 list2 中的元素
+for item in list2:
+    list1.append(item)
+print(list1)  # 输出: [1, 2, 3, 4, 5, 6]
+```
+
+4. **使用 `*` 运算符（用于重复列表）**
+
+如果你想要重复一个列表多个次数，可以使用 `*` 运算符。
+
+**示例**:
+```python
+list1 = [1, 2, 3]
+
+# 重复列表 3 次
+result = list1 * 3
+print(result)  # 输出: [1, 2, 3, 1, 2, 3, 1, 2, 3]
+```
+
+5. **使用 `itertools.chain()`（适用于多个列表的拼接）**
+
+`itertools.chain()` 方法可以高效地拼接多个列表，适用于大规模拼接时性能更优。
+
+**示例**:
+```python
+import itertools
+
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+list3 = [7, 8, 9]
+
+# 使用 chain() 拼接多个列表
+result = list(itertools.chain(list1, list2, list3))
+print(result)  # 输出: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+```
+
+6. **列表推导式（适用于条件拼接）**
+
+如果你需要在拼接时进行筛选或其他操作，可以使用列表推导式。
+
+**示例**:
+```python
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+
+# 使用列表推导式拼接并筛选
+result = [x for x in list1] + [x for x in list2 if x > 4]
+print(result)  # 输出: [1, 2, 3, 5, 6]
+```
+
+```python
+list1 = [1, 2, 3]
+list2 = [4, 5, 6]
+
+# 拼接两个列表
+result = [*list1 , *list2]
+print(result)  # 输出: [1, 2, 3, 4, 5, 6]
+
+result = [list1 , list2]
+print(result)  # 输出: [[1, 2, 3], [4, 5, 6]]
+```
+
+在 Python 中，`*list` 是一种解包操作符，用于将列表或其他可迭代对象的元素逐个取出，并在调用函数、构造列表、赋值等场景中按需展开。
+
+**总结**
+
+- **`+` 运算符**：直接拼接两个列表，返回新的列表。
+- **`extend()`**：将一个列表的元素逐个添加到另一个列表中，修改原始列表。
+- **`append()`**：逐个添加元素，适用于单独元素的添加。
+- **`*` 运算符**：用于重复列表的元素。
+- **`itertools.chain()`**：适用于多个列表的拼接，性能更优。
+- **列表推导式**：适用于条件拼接或在拼接时需要做操作的情况。
+
 ## torch
 
 ### torch的切片
@@ -559,6 +852,8 @@ print(tensor[:2, :2])  # 输出: tensor([[1, 2], [4, 5]])
 2. **步长切片**
 
 可以通过在冒号切片中使用步长（`start:stop:step`）来跳过元素进行切片。
+
+**ValueError: step must be greater than zero**
 
 **示例：**
 
@@ -615,6 +910,141 @@ tensor([[-0.7589, -0.7245,  1.4267, -1.4031],
         [-0.5548,  0.4153, -0.5483, -0.1310]])
 tensor([-0.7589, -0.7245,  1.4267, -1.4031])
 ```
+
+### torch的拼接
+
+在 PyTorch 中，拼接张量（tensor）有几种常见的方式，主要通过 `torch.cat()` 和 `torch.stack()` 来完成。它们的差异在于拼接的方式和维度。
+
+**1. 使用 `torch.cat()`**
+
+`torch.cat()` 用于在给定的维度上拼接多个张量。所有张量必须在除拼接维度外的其它维度上具有相同的形状。
+
+**语法**:
+```python
+torch.cat(tensors, dim=0, out=None)
+```
+- `tensors` 是一个张量序列（例如一个列表或元组），这些张量将被拼接。
+- `dim` 是指定在哪个维度上拼接，默认为 0。
+- `out` 是可选的输出张量。
+
+**示例**:
+```python
+import torch
+
+# 创建两个张量
+tensor1 = torch.randn(2, 3)
+tensor2 = torch.randn(2, 3)
+
+# 在第0维（行方向）拼接
+result = torch.cat((tensor1, tensor2), dim=0)
+print(result.shape)  # 输出：torch.Size([4, 3])
+
+# 在第1维（列方向）拼接
+result = torch.cat((tensor1, tensor2), dim=1)
+print(result.shape)  # 输出：torch.Size([2, 6])
+```
+
+**2. 使用 `torch.stack()`**
+
+`torch.stack()` 用于将多个张量沿着一个新维度拼接。拼接后的结果会增加一个新的维度。所有张量必须具有相同的形状。
+
+**语法**:
+```python
+torch.stack(tensors, dim=0)
+```
+- `tensors` 是一个张量序列（例如一个列表或元组）。
+- `dim` 是指定在哪个位置插入新维度（新维度会在这个位置创建）。
+
+**示例**:
+```python
+import torch
+
+# 创建两个张量
+tensor1 = torch.randn(2, 3)
+tensor2 = torch.randn(2, 3)
+
+# 沿着新维度（dim=0）堆叠
+result = torch.stack((tensor1, tensor2), dim=0)
+print(result.shape)  # 输出：torch.Size([2, 2, 3])
+
+# 沿着新维度（dim=1）堆叠
+result = torch.stack((tensor1, tensor2), dim=1)
+print(result.shape)  # 输出：torch.Size([2, 2, 3])
+```
+
+**3. 使用 `torch.unsqueeze()` 和 `torch.cat()`**
+
+如果你希望在拼接时改变维度，也可以使用 `torch.unsqueeze()` 来为张量添加一个新的维度，然后再进行拼接。
+
+**示例**:
+```python
+import torch
+
+# 创建两个张量
+tensor1 = torch.randn(2, 3)
+tensor2 = torch.randn(2, 3)
+
+# 使用 unsqueeze 增加维度
+tensor1_unsqueezed = tensor1.unsqueeze(0)  # shape: [1, 2, 3]
+tensor2_unsqueezed = tensor2.unsqueeze(0)  # shape: [1, 2, 3]
+
+# 在第0维拼接
+result = torch.cat((tensor1_unsqueezed, tensor2_unsqueezed), dim=0)
+print(result.shape)  # 输出：torch.Size([2, 2, 3])
+```
+
+**4. 使用 `torch.view()` 和 `torch.cat()`**
+
+如果你需要拼接张量并且调整其形状，也可以使用 `torch.view()`。
+
+**示例**:
+```python
+import torch
+
+# 创建两个张量
+tensor1 = torch.randn(2, 3)
+tensor2 = torch.randn(2, 3)
+
+# 调整形状后拼接
+tensor1_reshaped = tensor1.view(1, 6)  # 转为 1x6 的张量
+tensor2_reshaped = tensor2.view(1, 6)  # 转为 1x6 的张量
+
+# 拼接
+result = torch.cat((tensor1_reshaped, tensor2_reshaped), dim=0)
+print(result.shape)  # 输出：torch.Size([2, 6])
+```
+
+**总结**
+
+- **`torch.cat()`** 用于沿指定维度拼接已有张量，张量在拼接维度外的形状必须相同。
+- **`torch.stack()`** 用于沿新维度堆叠张量，结果会增加一个新的维度。
+- **`torch.unsqueeze()`** 和 **`torch.view()`** 可以用来修改张量的形状，再进行拼接。
+
+选择哪种方法，取决于你希望如何操作张量的维度以及你需要拼接的方式。
+
+### tensor.item()
+
+**从标量张量中提取值**
+
+```python
+import torch
+
+# 单值张量
+scalar_tensor = torch.tensor(42.0)
+value = scalar_tensor.item()  # 提取值
+print(value, type(value))  # 输出: 42.0 <class 'float'>
+```
+
+```python
+import torch
+
+print(torch.tensor([2983]).item())  # 输出: 2983
+```
+
+**原因**
+
+1. `torch.tensor([2983])` 是一个一维张量，但它只包含一个元素。
+2. 对于只含一个元素的一维张量，可以安全地调用 `.item()` 提取该元素的 Python 标量值。
 
 ### torch.float64
 
@@ -905,6 +1335,121 @@ torch.flatten(input, start_dim, end_dim=-1)
    - 输入张量 `x` 的形状是 `(batch_size, channels, height, width)`。
    - 经过 `torch.flatten(x, 1)` 后，输出张量的形状变为 `(batch_size, channels * height * width)`。
 
+**如何相互转换**
+
+`torch.flatten` 转换为 `tensor.reshape`：
+
+- 如果知道原张量的形状，可以手动计算出目标形状并使用 `reshape()`。
+
+- 示例：
+
+  ```python
+  x = torch.tensor([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+  flattened = torch.flatten(x, start_dim=1)  # torch.Size([2, 4])
+  
+  # 转换为 reshape 等效
+  reshaped = x.reshape(x.size(0), -1)  # 需要指定其他维度
+  print(flattened.equal(reshaped))  # True
+  ```
+
+### torch.unsqueeze()
+- **功能**: 在指定的维度上**插入一个大小为1的维度**。
+- **使用场景**: 当需要改变张量形状以适配特定操作（例如将 1D 张量扩展为 2D 或更高维度）时使用。
+
+**语法**
+
+```python
+torch.unsqueeze(input, dim)
+```
+
+- `input`: 输入的张量。
+- `dim`: 指定插入维度的位置（支持负数索引，表示从最后一维开始倒数）。
+
+**示例**
+
+```python
+import torch
+
+# 原始张量
+x = torch.tensor([1, 2, 3])  # 形状: [3]
+
+# 在第0维添加新维度
+x1 = torch.unsqueeze(x, 0)  # 形状: [1, 3]
+
+# 在第1维添加新维度
+x2 = torch.unsqueeze(x, 1)  # 形状: [3, 1]
+
+print(x1)  # tensor([[1, 2, 3]])
+print(x2)  # tensor([[1], [2], [3]])
+```
+
+###  torch.squeeze()
+- **功能**: **移除**张量中**大小为1的维度**。
+- **使用场景**: 简化张量形状，使其更符合直观需求（例如从 [1, 3, 1, 4] 变为 [3, 4]）。
+
+**语法**
+
+```python
+torch.squeeze(input, dim=None)
+```
+
+- `input`: 输入的张量。
+- `dim`（可选）: 指定移除的维度。如果该维度大小不为1，则不执行任何操作。
+  - 若未指定 `dim`，则移除**所有大小为1的维度**。
+
+**示例**
+
+```python
+import torch
+
+# 原始张量
+x = torch.tensor([[[1, 2, 3]]])  # 形状: [1, 1, 3]
+
+# 移除所有大小为1的维度
+x1 = torch.squeeze(x)  # 形状: [3]
+
+# 仅移除第0维
+x2 = torch.squeeze(x, 0)  # 形状: [1, 3]
+
+# 第1维大小为1，可以移除
+x3 = torch.squeeze(x, 1)  # 形状: [1, 3]
+
+print(x1)  # tensor([1, 2, 3])
+print(x2)  # tensor([[1, 2, 3]])
+print(x3)  # tensor([[1, 2, 3]])
+```
+
+**`unsqueeze` 和 `squeeze` 的组合使用**
+
+```python
+import torch
+
+x = torch.tensor([1, 2, 3])  # 形状: [3]
+
+# 增加一个维度
+x = torch.unsqueeze(x, 0)  # 形状: [1, 3]
+
+# 再移除这个维度
+x = torch.squeeze(x, 0)  # 形状: [3]
+
+print(x)  # tensor([1, 2, 3])
+```
+
+**注意事项**
+
+1. **`dim` 的范围**:
+   - 对于 `unsqueeze`，`dim` 必须在 `[-input.dim()-1, input.dim()]` 之间。
+   - 对于 `squeeze`，`dim` 的范围是 `[-input.dim(), input.dim()-1]`。
+   
+2. **`squeeze` 不会改变非大小为1的维度**:
+   - 例如，若尝试 `torch.squeeze(x, 2)` 对形状 `[3, 4, 5]` 的张量移除大小为1的第2维，不会产生任何变化，因为第2维大小为5。
+
+**总结**
+
+- **`unsqueeze`** 用于**添加**一个大小为1的维度。
+- **`squeeze`** 用于**移除**大小为1的维度。
+- 它们经常配合使用来调整张量形状以适配网络或计算需求。
+
 ### torch.clip()
 
 在 PyTorch 中，`torch.clip` 函数用于将一个张量的值限制在给定的最小值和最大值之间，通常用于避免数值溢出或者是裁剪梯度。其用法类似于 `torch.clamp` 函数，`torch.clip` 是 `torch.clamp` 的一个别名。
@@ -999,7 +1544,7 @@ print(x_flip01)
 
 **注意事项**
 
-- `torch.flip` 适用于任意维度的张量。它不会改变原始张量的形状，但会在指定维度上反转数据。
+- `torch.flip` 适用于任意维度的张量。**它不会改变原始张量的形状，但会在指定维度上反转数据。**
 - 由于 `torch.flip` 返回的是新的张量，因此如果不将结果赋值给新的变量，原始张量不会发生变化。
 
 **应用场景**

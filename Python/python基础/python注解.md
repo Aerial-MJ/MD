@@ -280,17 +280,20 @@ print(type([row[::2] for row in matrix[:3]])) <class 'list'>
 
 ### 逐步解析
 
-1. **`Optional[...]`**：
+1. `Optional[...]`：
+   
    - `Optional[T]` 是 `Union[T, None]` 的一种简写。
    - 这里表示这个对象可以是指定类型 `Sequence[Union[str, ellipsis, None]]`，也可以是 `None`。
-
+   
    所以：`Optional[Sequence[Union[str, ellipsis, None]]]` 表示这个对象可以是 `Sequence[Union[str, ellipsis, None]]` 或 `None`。
-
-2. **`Sequence[...]`**：
+   
+2. `Sequence[...]`：
+   
    - `Sequence` 是一种通用的序列类型，例如 `list`、`tuple`，用于存放有序的元素。
    - 这里表示对象是一个序列（如列表或元组），其元素类型为 `Union[str, ellipsis, None]`。
-
-3. **`Union[str, ellipsis, None]`**：
+   
+3. `Union[str, ellipsis, None]`：
+   
    - `Union` 表示元素可以是多种类型中的一种。
    - `Union[str, ellipsis, None]` 表示序列中的每个元素可以是 `str`（字符串类型）、`ellipsis`（省略符号，用作占位符的 `...`），或者 `None`。
 

@@ -94,6 +94,10 @@ c = a + b
 
 **Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu!**
 
+## detach和.cpu()
+
+
+
 ## 打印计算图
 
 ```python

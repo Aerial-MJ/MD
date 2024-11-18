@@ -95,6 +95,136 @@ plt.title('sin(x) and cos(x)')
 plt.show()  # 显示图形
 ```
 
+---
+
+`plt.imshow()` 是 `matplotlib` 库中的一个函数，用于在图形窗口显示图像。这个函数通常用于显示二维数组（如图像数据），或者是显示从文件中读取的图像。
+
+**函数原型：**
+
+```python
+matplotlib.pyplot.imshow(imshow_data, cmap=None, interpolation=None, **kwargs)
+```
+
+**参数解释：**
+
+- **imshow_data**: 要显示的数据，可以是一个二维数组（例如灰度图像）或者三维数组（例如彩色图像）。它也可以是通过 `matplotlib` 或其他方式读取的图像数据（如使用 `PIL` 或 `imageio` 读取的图像）。
+
+- **cmap**: 可选的颜色映射。如果图像是灰度图像（二维数组），你可以使用 `cmap` 参数指定使用的颜色映射。例如，`cmap='gray'` 会将图像显示为灰度色图。
+
+- **interpolation**: 图像插值方法。用于指定如何在图像缩放时进行插值。例如：
+  - `'nearest'`: 最近邻插值
+  - `'bilinear'`: 双线性插值
+  - `'bicubic'`: 双三次插值
+  - `'none'`: 无插值，直接显示原图像
+
+- **origin**: 用于设置图像的起始坐标。可以是 `'upper'`（默认）或者 `'lower'`，决定图像数据的行列坐标如何映射到显示图像上。
+
+- **extent**: 图像的坐标范围。通常用于控制图像在坐标系中的显示范围。例如，`extent=[xmin, xmax, ymin, ymax]` 用于控制图像的显示位置。
+
+- **kwargs**: 其他传递给 `imshow` 的参数，如 `alpha`（透明度）、`aspect`（纵横比），等等。
+
+**示例代码：**
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 创建一个随机的二维数组（灰度图像数据）
+data = np.random.rand(10, 10)
+
+# 显示图像
+plt.imshow(data, cmap='viridis', interpolation='nearest')
+plt.colorbar()  # 显示颜色条
+plt.show()
+```
+
+**示例解释：**
+
+- 这段代码创建了一个 10x10 的随机数矩阵，然后使用 `plt.imshow()` 显示出来，`cmap='viridis'` 设置了颜色映射，`interpolation='nearest'` 表示图像使用最近邻插值。
+
+**其他示例：显示彩色图像**
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 创建一个 3D 数组，表示一个 RGB 彩色图像
+image_data = np.random.rand(10, 10, 3)
+
+# 显示彩色图像
+plt.imshow(image_data)
+plt.show()
+```
+
+**总结：**
+
+`plt.imshow()` 是一个非常有用的函数，尤其在处理图像数据时，通过它可以方便地显示二维或三维的数据（如灰度图、彩色图等）。
+
+---
+
+`plt.imshow()` 和 `plt.show()` 都是 `matplotlib` 中用于图形显示的重要函数，但它们的功能和作用有所不同。
+
+### 1.plt.imshow()
+
+`plt.imshow()` 是用来显示图像的函数。它会把一个图像数据（如二维数组或三维数组）渲染并显示在当前的图形窗口或绘图区内。
+
+- **功能**：将图像（二维矩阵或三维矩阵）显示在一个 `matplotlib` 图形窗口中。
+- **参数**：你可以传入一个二维数组（如灰度图像）或者三维数组（如RGB彩色图像）。还可以通过 `cmap`、`interpolation` 等参数调整显示效果。
+
+例如：
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 创建一个 10x10 的随机灰度图像
+data = np.random.rand(10, 10)
+
+# 显示图像
+plt.imshow(data, cmap='gray')
+```
+
+### 2.plt.show()
+`plt.show()` 是用来启动 `matplotlib` 的绘图界面，并显示所有已经创建的图形。在你完成所有图形绘制和配置后，调用 `plt.show()` 会打开一个图形窗口并展示结果。
+
+- **功能**：它启动一个图形界面，展示当前所有已经绘制的图形。`plt.show()` 会阻塞代码执行，直到图形窗口被关闭。
+- **作用**：它是展示图形的最后一步。在交互式环境下，`plt.show()` 通常不是必须的（例如在 Jupyter Notebooks 中），但在脚本或非交互式环境中，它是必要的。
+
+例如：
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+# 创建一个 10x10 的随机图像
+data = np.random.rand(10, 10)
+
+# 使用 imshow() 显示图像
+plt.imshow(data, cmap='gray')
+
+# 使用 show() 显示图形窗口
+plt.show()
+```
+
+**两者的关系：**
+
+- `plt.imshow()` 是用来实际绘制图像的，它将图像显示在当前的绘图区域（Axes）内，但它并不立即弹出图形窗口。
+- `plt.show()` 是用来显示所有已绘制的图形（包括通过 `imshow()` 显示的图像）。在使用 `plt.show()` 后，图形窗口才会弹出。
+
+**在交互式环境中的区别：**
+
+- **Jupyter Notebook** 或其他交互式环境中，通常在绘制图像后，`plt.show()` 并不是必须的，因为 Jupyter 会自动显示绘图。
+  
+  例如，在 Jupyter Notebook 中：
+  ```python
+  plt.imshow(data)
+  ```
+
+  就会直接显示图像，而无需显式调用 `plt.show()`。
+
+**总结：**
+
+- `plt.imshow()` 用于绘制和显示图像数据。
+- `plt.show()` 用于显示图形窗口，确保图形界面被展示出来，并且阻塞代码执行，直到窗口关闭。
+
 ## matplotlib和pillow两个库的异同
 
 `Matplotlib` 和 `Pillow` 是 Python 中两个常用的图像处理库，它们在功能上有所重叠，但也有明显的区别。下面是对这两个库的比较。

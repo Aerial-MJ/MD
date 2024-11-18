@@ -2,7 +2,7 @@
 
 **查看类型**
 
-```
+```python
 x = 10
 print(type(x))  # 输出: <class 'int'>
 
@@ -17,7 +17,7 @@ print(type(z))  # 输出: <class 'list'>
 
 **List 转 Tensor**：使用 `torch.tensor()`
 
-**Tensor 转 List**：使用 `tensor实例.tolist()`
+**Tensor 转 List**：使用 `tensor实例.tolist()`     `list()`
 
 
 
@@ -29,7 +29,7 @@ print(type(z))  # 输出: <class 'list'>
 
 **List 转 NumPy 数组**：使用 `np.array()`
 
-**NumPy 数组转 List**：使用 `ndarray实例.tolist()`
+**NumPy 数组转 List**：使用 `ndarray实例.tolist()`    `list()`
 
 **(NumPy 的 N 维数组对象 ndarray，它是一系列同类型数据的集合)**
 
@@ -39,7 +39,7 @@ print(type(z))  # 输出: <class 'list'>
 
 - **list->tensor**
 
-```
+```python
 import torch
 
 # 创建一个列表
@@ -54,7 +54,7 @@ print(my_tensor)
 
 - **tensor->list**
 
-```
+```python
 # 创建一个 tensor
 my_tensor = torch.tensor([1, 2, 3, 4])
 
@@ -72,7 +72,7 @@ print(my_list)
 
 - **numpy->tensor**
 
-```
+```python
 import torch
 import numpy as np
 
@@ -89,7 +89,7 @@ print(tensor_from_np)
 
 - **tensor->numpy**
 
-```
+```python
 # 创建一个 Tensor
 tensor1 = torch.tensor([1, 2, 3, 4])
 
@@ -166,7 +166,7 @@ output_cpu = output.detach().cpu()  # 分离计算图并转移到 CPU
 
 -  **List 转 NumPy 数组**
 
-```
+```python
 import numpy as np
 
 # 创建一个 Python 列表
@@ -182,7 +182,7 @@ print(np_array)
 
 - **NumPy 数组转 List**
 
-```
+```python
 # 创建一个 NumPy 数组
 np_array = np.array([1, 2, 3, 4])
 

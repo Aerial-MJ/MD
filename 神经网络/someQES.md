@@ -1059,3 +1059,34 @@ print(f"Sum: {x + y}")  # 输出: Sum: 30
 pi = 3.14159265
 print(f"Pi: {pi:.2f}")  # 输出: Pi: 3.14
 ```
+
+**在 Python 的 f-string（模板字符串）中，`{}` 内的变量或表达式会被自动转换成字符串**。无需手动调用 `str()` 方法，f-string 会自动将变量或表达式的结果转换为字符串，并插入到最终的输出中。
+
+**自定义对象的转换**
+
+对于自定义对象，f-string 会调用该对象的 `__str__()` 方法或 `__repr__()` 方法来进行字符串转换。
+
+**示例**
+
+```python
+class Person:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+    def __str__(self):
+        return f"{self.name}, {self.age} years old"
+
+p = Person("Alice", 25)
+print(f"Person info: {p}")
+```
+
+**输出**：
+
+```perl
+Person info: Alice, 25 years old
+```
+
+**解释**：
+
+- `f"{p}"` 自动调用了 `p` 的 `__str__()` 方法，将对象转换为字符串。

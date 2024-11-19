@@ -101,7 +101,6 @@ c = a + b
 ## 打印计算图
 
 ```python
-
 # 创建一个需要计算梯度的张量 x
 x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
 w = x.sum()
@@ -489,7 +488,7 @@ for item in my_iter:
 ### 3. **生成器和迭代器的关系**
 
 生成器本质上就是一种简化了创建迭代器的方式。  
-- 生成器通过 `yield` 自动实现了 `__iter__()` 和 `__next__()` 方法，因而天然就是迭代器。
+- 生成器通过 `yield` 自动实现了 `__iter__()` 和 `__next__()` 方法，**因而天然就是迭代器。**
 - 生成器对象可以直接用于 `for` 循环或 `next()` 函数。
 
 **示例**
@@ -539,6 +538,123 @@ print(next(gen_expr))  # 输出: 1
 | 是否内存高效     | 是（惰性求值）      | 是（根据数据情况）                |
 | 用途             | 简化迭代器实现      | 用于自定义复杂遍历逻辑            |
 | 是否天然支持迭代 | 是                  | 是                                |
+
+## 迭代器工作原理
+
+可迭代对象的定义如下： **如果一个对象实现了__iter__方法，那么这个对象就是可迭代对象**。
+
+我们来验证一下这个定义是否成立
+
+```python
+from collections.abc import Iterable, Iterator
+
+
+class Color(object):
+
+    def __init__(self):
+        self.colors = ['red', 'white', 'black', 'green']
+
+    # 仅仅是实现了__iter__ 方法,在方法内部什么都不做
+    def __iter__(self):
+        pass
+
+color_object = Color()
+# 判断是否为可迭代对象
+print(isinstance(color_object, Iterable))       # True
+# 判断是否为迭代器
+print(isinstance(color_object, Iterator))       # False
+```
+
+迭代器的定义如下：**如果一个对象同时实现了__iter__方法和__next__方法，它就是迭代器**。
+
+按照这个定义，我对第二小节中的Color类进行改造
+
+```python
+from collections.abc import Iterable, Iterator
+
+
+class Color(object):
+
+    def __init__(self):
+        self.colors = ['red', 'white', 'black', 'green']
+
+    # 仅仅是实现了__iter__ 方法,在方法内部什么都不做
+    def __iter__(self):
+        pass
+
+    def __next__(self):
+        pass
+
+color_object = Color()
+# 判断是否为可迭代对象
+print(isinstance(color_object, Iterable))       # True
+# 判断是否为迭代器
+print(isinstance(color_object, Iterator))       # True
+```
+
+改造后，color_object 是可迭代对象，也是迭代器，尽管它不能正常的工作，但这并不影响它的身份。同时我们也可以得出一个结论，**迭代器一定是可迭代对象**，因为迭代器要求必须同时实现__iter__方法和__next__方法， 而一旦实现了__iter__方法就必然是一个可迭代对象。但是反过来则不成立，可迭代对象可以不是迭代器。
+
+接下来，我们要研究一下迭代器是如何工作的，它是怎样实现迭代的，首先，我们要认识一下内置函数iter
+
+### 内置函数iter获得迭代器
+
+**iter函数的作用是从可迭代对象那里获得一个迭代器**， 我们设计一个实验来验证这个说法
+
+```python
+from collections.abc import Iterator
+
+lst_iter = iter([1, 2, 3])
+print(isinstance(lst_iter, Iterator))       # True
+```
+
+所言非虚，iter会返回一个迭代器
+
+>## INSTANCE AND TYPE
+
+>```python
+># coding=UTF-8
+>class father(object):
+>    pass
+>class son(father):
+>    pass
+>>>>a=father()
+>>>>b=son()
+>>>>isinstance(a,father)
+>True
+>>>>type(a)==father
+>True
+>>>>isinstance(b,father)#isinstance得到子类实例是属于父类的
+>True
+>>>>type(b)==father#type对于子类实例判断不属于父类
+> False
+>```
+
+### 使用内置函数next遍历迭代器
+
+**内置函数next的功能是从迭代器那里返回下一个值**，设计实验来验证它
+
+```python
+from collections.abc import Iterator
+
+lst_iter = iter([1, 2, 3])
+print(next(lst_iter))       # 1
+```
+
+实践与理论完美结合，让我们多调用几次next函数
+
+```python
+from collections.abc import Iterator
+
+lst_iter = iter([1, 2, 3])
+print(next(lst_iter))       # 1
+print(next(lst_iter))       # 2
+print(next(lst_iter))       # 3
+print(next(lst_iter))       # StopIteration
+```
+
+前3次调用next函数都能正常工作，第4次会抛出StopIteration异常，迭代器里已经没有下一个值了。
+
+现在，让我们来做一个总结，遍历迭代器需要使用next方法，每调用一次next方法，就会返回一个值，没有值可以返回时，就会引发StopIteration异常。
 
 ## With关键字
 
@@ -717,4 +833,228 @@ print(type(numpy.dtype(numpy.int32)))
 dtype_obj = np.dtype(np.int64)
 print(dtype_obj)       # 输出: int64
 print(type(dtype_obj)) # 输出: <class 'numpy.dtype'>
+```
+
+## print问题
+
+在 Python 中，`print()` 函数的逗号（`,`）和加号（`+`）用来连接多个内容输出，但它们有明显的区别。以下分别说明：
+
+---
+
+### 1. **逗号 `,`**
+- 用于将多个对象作为参数传递给 `print()` 函数。
+- **自动在对象之间插入空格**。
+- 不要求所有对象类型相同，Python 会自动将对象转换为字符串后输出。
+
+示例：
+
+```python
+name = "Alice"
+age = 25
+print("Name:", name, "Age:", age)
+```
+
+**输出**：
+```
+Name: Alice Age: 25
+```
+
+**特点**：
+- 逗号能接受不同类型的数据，自动用空格隔开。
+- 使用时无需手动转换数据类型。
+
+---
+
+### 2. **加号 `+`**
+- 用于字符串的**拼接**操作。
+- 所有参与拼接的对象必须是字符串类型，其他类型需要先用 `str()` 转换，否则会抛出 `TypeError`。
+
+示例：
+
+```python
+name = "Alice"
+age = 25
+print("Name: " + name + ", Age: " + str(age))
+```
+
+**输出**：
+```
+Name: Alice, Age: 25
+```
+
+**特点**：
+- 输出时**不会自动添加空格**，拼接完全按照字符串内容。
+- 不同类型的数据需要手动转换为字符串。
+
+**区别总结**
+
+| 特性                 | **逗号 `,`**                              | **加号 `+`**                     |
+| -------------------- | ----------------------------------------- | -------------------------------- |
+| **是否自动添加空格** | 是                                        | 否                               |
+| **支持的数据类型**   | 可以是任意类型，Python 会自动转换为字符串 | 必须都是字符串，否则报错         |
+| **适用场景**         | 简单输出多类型变量，快速生成调试信息      | 字符串拼接，需要精准控制格式输出 |
+
+**对比示例：**
+
+```python
+name = "Alice"
+age = 25
+
+# 使用逗号
+print("Hello", name, "you are", age, "years old.")
+# 使用加号
+print("Hello " + name + ", you are " + str(age) + " years old.")
+```
+
+**输出**：
+```
+Hello Alice you are 25 years old.
+Hello Alice, you are 25 years old.
+```
+
+- 逗号版本更简洁，不需要显式地转换类型。
+- 加号版本更灵活，能更精准地控制格式（例如逗号和空格）。
+
+## 格式化
+
+### 1.  `%` 格式化
+
+这是 Python 中较早的一种字符串格式化方式，使用类似 C 语言的占位符进行替换。
+
+**语法**
+
+```python
+"模板字符串" % (值1, 值2, ...)
+```
+
+- 占位符 `%` 指定插入值的类型。
+- 常用占位符：
+  - `%d`：整数
+  - `%f`：浮点数
+  - `%s`：字符串
+  - `%%`：插入一个百分号
+
+**示例**
+
+```python
+# 插入整数
+x = 42
+print("The answer is %d" % x)  # 输出: The answer is 42
+
+# 插入多个值
+name, age = "Alice", 25
+print("My name is %s and I am %d years old." % (name, age))
+# 输出: My name is Alice and I am 25 years old.
+
+# 格式化浮点数
+pi = 3.14159265
+print("Pi is approximately %.2f." % pi)  # 保留两位小数
+# 输出: Pi is approximately 3.14.
+
+# 插入百分号
+print("Completion: 50%%")  # 输出: Completion: 50%
+```
+
+```python
+a = [1, 2, 3]
+print("The answer is %s" % str(a))  # 输出: The answer is [1, 2, 3]
+```
+
+### 2. `str.format()`
+
+这是 Python 2.7 和 3.0 引入的更强大、更灵活的字符串格式化方法。
+
+**语法**
+
+```python
+"模板字符串".format(值1, 值2, ...)
+```
+
+- 使用 `{}` 作为占位符。
+- 占位符中的内容可以：
+  - 按顺序插入：`{}`
+  - 指定位置：`{0}`、`{1}`...
+  - 指定关键字：`{key}`
+  - 指定格式：`{:.2f}`（保留两位小数）
+
+**示例**
+
+**基本用法**
+
+```python
+# 按顺序插入
+print("Hello, {}!".format("World"))  # 输出: Hello, World!
+
+# 使用位置参数
+print("The answer is {0} and {1}.".format(42, 3.14))  # 输出: The answer is 42 and 3.14.
+
+# 使用关键字参数
+print("Name: {name}, Age: {age}".format(name="Alice", age=25))  # 输出: Name: Alice, Age: 25
+```
+
+**格式控制**
+
+```python
+# 保留小数位
+pi = 3.14159265
+print("Pi is approximately {:.2f}.".format(pi))  # 输出: Pi is approximately 3.14.
+
+# 填充与对齐
+print("{:>10}".format("Right"))  # 输出: "     Right" (右对齐)
+print("{:<10}".format("Left"))   # 输出: "Left     " (左对齐)
+print("{:^10}".format("Center")) # 输出: "  Center  " (居中对齐)
+```
+
+**重复使用变量**
+
+```python
+name = "Alice"
+print("Hello, {0}! Your name is {0}.".format(name))
+# 输出: Hello, Alice! Your name is Alice.
+```
+
+**对比总结**
+
+| 特性         | `%` 格式化               | `str.format()`             |
+| ------------ | ------------------------ | -------------------------- |
+| **简单性**   | 适合简单字符串格式化     | 更灵活，但语法稍复杂       |
+| **功能**     | 基础的格式化功能         | 功能强大，支持对齐、精度等 |
+| **扩展性**   | 不支持动态表达式         | 支持复杂表达式             |
+| **向后兼容** | 兼容 Python 2.x          | 仅适用于 Python 2.7+       |
+| **推荐程度** | 较旧（适用于维护旧代码） | 新代码推荐 f-string 替代   |
+
+---
+
+**推荐使用**：
+1. **简单字符串格式化**：可以使用 `%`，但尽量迁移到 `str.format()` 或 `f-string`。
+2. **复杂逻辑和灵活格式化**：优先使用 `str.format()` 或 `f-string`（Python 3.6+）。
+
+### 3. f-string
+
+f-string 是 Python 3.6 引入的新方法，更加简洁高效。
+
+**语法**
+
+```python
+f"模板字符串 {变量名或表达式}"
+```
+
+- **变量直接嵌入**：通过 `{}` 插入变量或表达式。
+- **支持格式说明符**：类似于 `str.format()`。
+
+**示例**
+
+```python
+name, age = "Alice", 25
+
+# 插入变量
+print(f"Name: {name}, Age: {age}")  # 输出: Name: Alice, Age: 25
+
+# 表达式计算
+x, y = 10, 20
+print(f"Sum: {x + y}")  # 输出: Sum: 30
+
+# 浮点数格式化
+pi = 3.14159265
+print(f"Pi: {pi:.2f}")  # 输出: Pi: 3.14
 ```

@@ -75,7 +75,7 @@ make_dot(y, params=dict(list(model.named_parameters()) + [('input', input_tensor
 
 总结来说，计算图中的节点包括输入张量（叶子节点）、中间计算结果和最终的输出（根节点）。每个张量都有一个 `grad_fn` 来追踪它的创建过程，这在反向传播过程中至关重要。
 
-## equires_grad=False的节点在计算图内吗
+## requires_grad=False的节点在计算图内吗
 
 在 PyTorch 中，如果一个张量的 `requires_grad=False`，那么它的操作不会被包含在计算图中，也不会记录用于反向传播的梯度信息。因此，**不需要计算梯度的节点**是不会被构建到计算图中的。
 

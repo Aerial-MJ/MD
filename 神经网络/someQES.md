@@ -490,7 +490,7 @@ for item in my_iter:
 生成器本质上就是一种简化了创建迭代器的方式。  
 - 生成器通过 `yield` 自动实现了 `__iter__()` 和 `__next__()` 方法，**因而天然就是迭代器。**
 - 生成器对象可以直接用于 `for` 循环或 `next()` 函数。
-- **生成器是一种特殊的迭代器**
+- **生成器是一种特殊的迭代器，生成器是迭代器的一类，Iterable包含Iterator包含Generator**
 
 **示例**
 
@@ -707,7 +707,7 @@ with custom_context() as value:
 **输出：**
 ```
 Entering the context
-Inside the context, got value: 42
+Inside the context,got value: 42
 Exiting the context
 ```
 

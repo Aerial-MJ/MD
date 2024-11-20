@@ -324,3 +324,127 @@ print(example3)  # 输出: ['foo', Ellipsis, None]
 
 ### 总结
 `Optional[Sequence[Union[str, ellipsis, None]]]` 表示一个可以为 `None` 的序列，且序列中的每个元素可以是 `str` 类型的字符串、`ellipsis`（`...`），或 `None`。
+
+在Python中，`Union`、`Sequence` 和 `Optional` 是`typing`模块中的工具，用于类型注解以提高代码的可读性、可靠性，并帮助工具（如IDE和静态类型检查器）进行更好的代码分析。
+
+## 注解
+
+### 1. **`Union`**
+`Union`表示一个变量可以是多种类型中的一种。
+
+#### 语法
+```python
+from typing import Union
+
+def process_data(data: Union[int, str]) -> None:
+    if isinstance(data, int):
+        print(f"Processing integer: {data}")
+    elif isinstance(data, str):
+        print(f"Processing string: {data}")
+```
+
+#### 说明
+- 在这个例子中，`data`可以是`int`或`str`类型。
+- `Union[int, str]`的含义是：**类型要么是`int`，要么是`str`，不能是其他类型。**
+
+---
+
+### 2. **`Sequence`**
+`Sequence`是泛型类型，表示任何支持序列操作的容器类型，例如`list`、`tuple`、`str`等。
+
+#### 语法
+```python
+from typing import Sequence
+
+def calculate_sum(numbers: Sequence[int]) -> int:
+    return sum(numbers)
+
+result = calculate_sum([1, 2, 3])  # list
+result = calculate_sum((4, 5, 6))  # tuple
+# calculate_sum("123")  # 类型检查器可能会提示错误
+```
+
+#### 说明
+- `Sequence`泛型需要提供一个具体的元素类型，例如`Sequence[int]`表示包含`int`类型元素的序列。
+- 常见序列类型有`list`、`tuple`等，不包括`set`或`dict`，因为它们不支持按索引访问。
+
+>具体来说，Python 中的序列类型有以下特点：
+>
+>1. **有序性（Ordered）**
+>   字符串中的每个字符都有一个固定的位置，可以通过索引访问，例如 `s[0]` 访问字符串 `s` 的第一个字符。
+>2. **可迭代性（Iterable）**
+>   字符串是可迭代的，可以在 `for` 循环中逐个访问其字符。
+>3. **支持切片（Slicing）**
+>   字符串支持切片操作，例如 `s[1:4]` 返回字符串从索引 1 到 3 的子字符串。
+>4. **不可变性（Immutable）**
+>   字符串是不可变的，一旦创建就无法更改其内容。例如，不能直接通过 `s[0] = 'a'` 修改字符串。
+>5. **支持常见序列操作**
+>   字符串支持许多常见的序列操作，如：
+>   - **连接**：`"hello" + "world"` 生成 `"helloworld"`
+>   - **重复**：`"ha" * 3` 生成 `"hahaha"`
+>   - **成员关系**：`'a' in "abc"` 返回 `True`
+>   - **长度**：`len("hello")` 返回 `5`
+>6. **与其他序列的区别**
+>   虽然 `str` 是序列的一种，但它专门用于表示文本数据，而不像列表可以存储任意类型的对象。
+
+---
+
+### 3. **`Optional`**
+`Optional`表示一个变量**可以是某种类型，也可以是`None`**。
+
+#### 语法
+```python
+from typing import Optional
+
+def get_username(user_id: int) -> Optional[str]:
+    if user_id == 1:
+        return "Alice"
+    return None
+```
+
+#### 等效写法
+```python
+Optional[str] == Union[str, None]
+```
+
+#### 说明
+- `Optional[str]`的含义是：该变量可以是`str`类型，也可以是`None`。
+- 它是`Union[T, None]`的简写，更加直观和常用。
+
+---
+
+### 示例整合
+```python
+from typing import Union, Sequence, Optional
+
+def describe_item(item: Union[int, str], tags: Optional[Sequence[str]] = None) -> None:
+    print(f"Item: {item}")
+    if tags:
+        print("Tags:")
+        for tag in tags:
+            print(f"- {tag}")
+    else:
+        print("No tags provided.")
+
+# 用法示例
+describe_item(42, ["important", "urgent"])
+describe_item("book", None)
+```
+
+#### 输出：
+```
+Item: 42
+Tags:
+- important
+- urgent
+
+Item: book
+No tags provided.
+```
+
+---
+
+### 总结
+- **`Union`**：多种可能的类型（例如`int`或`str`）。
+- **`Sequence`**：任意支持顺序操作的容器类型，指定元素类型。
+- **`Optional`**：某种类型或`None`。

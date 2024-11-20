@@ -768,7 +768,7 @@ with MyContextManager() as cm:
 ```
 
 **输出：**
-```
+```lua
 Iterator started
 1
 2
@@ -824,8 +824,6 @@ Closing database connection...
 - **生成器与 `with`**：通过 `contextlib.contextmanager`，生成器可以实现上下文管理功能。
 - **迭代器与 `with`**：如果迭代器实现了 `__enter__` 和 `__exit__` 方法，可以直接作为上下文管理器使用。
 - **实际意义**：这种结合让资源管理更简洁，尤其是在处理文件、网络连接或数据库操作时，减少了手动释放资源的负担。
-
-## 异常处理机制
 
 ## numpy问题
 

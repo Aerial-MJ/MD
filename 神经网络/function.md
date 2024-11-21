@@ -31,6 +31,11 @@ print(type(z))  # 输出: <class 'list'>
 
 **NumPy 数组转 List**：使用 `ndarray实例.tolist()`    `list()`
 
+```python
+array = np.array([[1, 2, 3], [2, 3, 4]])
+# list(array) [array([1, 2, 3]), array([2, 3, 4])]
+```
+
 **(NumPy 的 N 维数组对象 ndarray，它是一系列同类型数据的集合)**
 
 

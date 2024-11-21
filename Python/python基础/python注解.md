@@ -390,7 +390,7 @@ result = calculate_sum((4, 5, 6))  # tuple
 ==**`Sequence` 的定位：**==
 
 - 是 `collections.abc` 模块中的抽象基类，用于统一定义有序容器的接口。
-- 常见序列类型如 `list`, `tuple`, `str` 等都直接或间接继承了 `Sequence`。
+- **常见序列类型如 `list`, `tuple`, `str` 等都直接或间接继承了 `Sequence`。**
 
 ---
 

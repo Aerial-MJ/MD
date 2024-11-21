@@ -818,6 +818,136 @@ print(result)  # 输出: [[1, 2, 3], [4, 5, 6]]
 - **`itertools.chain()`**：适用于多个列表的拼接，性能更优。
 - **列表推导式**：适用于条件拼接或在拼接时需要做操作的情况。
 
+### random
+
+Python 的 `random` 模块提供了用于生成伪随机数的功能，以及其他与随机性相关的实用工具。它是 Python 标准库的一部分，基于 Mersenne Twister 算法实现。
+
+**常用功能**
+
+1. **生成随机数**
+
+- **`random.random()`**
+   生成一个范围在 `[0.0, 1.0)` 的浮点数。
+
+  ```python
+  import random
+  print(random.random())  # 输出例如：0.6394267984578837
+  ```
+
+- **`random.uniform(a, b)`**
+   生成一个范围在 `[a, b]` 的浮点数。
+
+  ```python
+  print(random.uniform(1.5, 10.5))  # 输出例如：6.871710157079894
+  ```
+
+2. **生成随机整数**
+
+- **`random.randint(a, b)`**
+   返回一个范围在 `[a, b]` 的整数，包含 `a` 和 `b`。
+
+  ```python
+  print(random.randint(1, 10))  # 输出例如：7
+  ```
+
+- **`random.randrange(start, stop[, step])`**
+   返回在 `range(start, stop, step)` 中的一个随机整数。
+
+  ```python
+  print(random.randrange(0, 10, 2))  # 输出例如：4
+  ```
+
+3. **随机选择**
+
+- **`random.choice(seq)`**
+   从非空序列中随机选择一个元素。
+
+  ```python
+  items = ['apple', 'banana', 'cherry']
+  print(random.choice(items))  # 输出例如：'banana'
+  ```
+
+- **`random.choices(population, weights=None, k=1)`**
+   从 `population` 中随机选择 `k` 个元素（可以重复），可指定权重。
+
+  ```python
+  print(random.choices(['a', 'b', 'c'], weights=[1, 2, 3], k=5))  # 输出例如：['c', 'b', 'c', 'a', 'c']
+  ```
+
+- **`random.sample(population, k)`**
+   从 `population` 中随机选择 `k` 个唯一元素（不重复）。
+
+  ```python
+  print(random.sample(range(10), 4))  # 输出例如：[1, 3, 7, 2]
+  ```
+
+4. **打乱顺序**
+
+- `random.shuffle(seq)`
+
+  就地打乱序列（会修改原序列）。
+
+  ```python
+  numbers = [1, 2, 3, 4, 5]
+  random.shuffle(numbers)
+  print(numbers)  # 输出例如：[3, 1, 5, 2, 4]
+  ```
+
+5. **控制随机性（设置种子）**
+
+- `random.seed(a=None)`
+
+  设置随机数生成器的种子。相同的种子会生成相同的随机序列。
+
+  ```python
+  random.seed(42)
+  print(random.random())  # 输出 0.6394267984578837
+  ```
+
+6. **生成正态分布或其他分布的随机数**
+
+- **`random.gauss(mu, sigma)`**
+   返回一个正态分布的随机数，均值为 `mu`，标准差为 `sigma`。
+
+  ```python
+  print(random.gauss(0, 1))  # 输出例如：-0.34038332775286323
+  ```
+
+- **`random.expovariate(lambd)`**
+   返回一个指数分布的随机数，`lambd` 是分布的参数。
+
+  ```python
+  print(random.expovariate(1.5))  # 输出例如：0.4389147982460136
+  ```
+
+- **`random.betavariate(alpha, beta)`**
+   返回 Beta 分布的随机数。
+
+  ```python
+  print(random.betavariate(2, 5))  # 输出例如：0.2537089593875248
+  ```
+
+**适用场景**
+
+- 数据模拟（如抽样、分布生成）。
+- 游戏开发（如随机地图、AI行为）。
+- 安全（推荐使用 `secrets` 模块）。
+
+**注意事项**
+
+- `random` 模块生成的随机数是伪随机的，不能用于安全场景。
+- 如果需要安全随机数，可以使用 `secrets` 模块或 `os.urandom()`。
+
+**示例：随机抽奖**
+
+```python
+import random
+
+participants = ['Alice', 'Bob', 'Charlie', 'David']
+winner = random.choice(participants)
+print(f"The winner is: {winner}")
+```
+
 ## torch
 
 ### torch的切片

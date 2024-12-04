@@ -94,11 +94,11 @@ int main() {
 
 class ThreadPool {
 private:
-    std::vector<std::thread> workers;
-    std::queue<std::function<void()>> tasks;
-    std::mutex queue_mutex;
-    std::condition_variable condition;
-    bool stop;
+    std::vector<std::thread> workers;                  // 存储线程对象的向量
+    std::queue<std::function<void()>> tasks;           // 存储任务的队列
+    std::mutex queue_mutex;                            // 保护任务队列的互斥锁
+    std::condition_variable condition;                 // 条件变量，用于线程同步
+    bool stop;                                         // 标志位，用于停止线程池
 
 public:
     explicit ThreadPool(size_t threads) : stop(false) {

@@ -1083,7 +1083,7 @@ print(result.shape)  # 输出：torch.Size([2, 6])
 
 **2. 使用 `torch.stack()`**
 
-`torch.stack()` 用于将多个张量沿着一个新维度拼接。拼接后的结果会增加一个新的维度。所有张量必须具有相同的形状。
+`torch.stack()` 用于将多个张量沿着**一个新维度拼接**。拼接后的结果会增加一个新的维度。所有张量必须具有相同的形状。
 
 **语法**:
 ```python
@@ -1093,6 +1093,7 @@ torch.stack(tensors, dim=0)
 - `dim` 是指定在哪个位置插入新维度（新维度会在这个位置创建）。
 
 **示例**:
+
 ```python
 import torch
 

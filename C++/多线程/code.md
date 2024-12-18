@@ -81,6 +81,32 @@ int main() {
 
 ==回调函数就是一个参数，将这个函数作为参数传到另一个函数里面，当那个函数执行完之后，再执行传进去的这个函数。这个过程就叫做回调。==
 
+>```C++
+>#include <iostream>
+>
+>// 类定义
+>class MyClass {
+>public:
+>    // 静态成员函数
+>    static void callback() {
+>        std::cout << "Callback function called!" << std::endl;
+>    }
+>};
+>
+>// 接受回调函数的函数
+>void executeCallback(void (*callback)()) {
+>    std::cout << "Executing some code..." << std::endl;
+>    callback();  // 调用回调函数
+>}
+>
+>int main() {
+>    // 将静态成员函数作为回调传递
+>    executeCallback(MyClass::callback);
+>    return 0;
+>}
+>
+>```
+
 ```c++
 #ifndef THREAD_POOL_H
 #define THREAD_POOL_H

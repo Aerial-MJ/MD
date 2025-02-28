@@ -1,7 +1,7 @@
-# 有穷状态机（DFA、NFA）和有限状态机
+# 有穷自动机（DFA、NFA）和有限状态机
 
-## 1. 有穷状态机 vs. 有限状态机
-- **有穷状态机**（Deterministic Finite Automaton, DFA 或 Non-deterministic Finite Automaton, NFA）：
+## 1. 有穷自动机 vs. 有限状态机
+- **有穷自动机**（Deterministic Finite Automaton, DFA 或 Non-deterministic Finite Automaton, NFA）：
   - 强调状态数是有限的，并且在**形式语言**和**自动机理论**中经常使用这种叫法。
   - 常见于**计算机科学理论、形式语言、编译原理**中。
 - **有限状态机**（Finite State Machine, FSM）：
@@ -13,7 +13,7 @@
 
 ## 2. DFA 和 NFA 的区别
 
-### DFA（确定性有穷状态机, Deterministic Finite Automaton）  
+### DFA（确定性有穷自动机, Deterministic Finite Automaton）  
 - **状态转移确定**：在任一状态下，对任一输入符号，都有且仅有一个确定的转移状态。  
 - **形式定义**：  
   $$
@@ -30,7 +30,7 @@
 
 ---
 
-### NFA（非确定性有穷状态机, Non-deterministic Finite Automaton）  
+### NFA（非确定性有穷自动机, Non-deterministic Finite Automaton）  
 - **状态转移不确定**：在某一状态下，对某一输入符号，可以有多个转移状态，甚至可以没有转移状态。  
 - **形式定义**：  
   $$
@@ -57,8 +57,8 @@
 ---
 
 ## 总结
-- **有穷状态机** 和 **有限状态机** 本质一样，只是叫法不同。  
-- **DFA 和 NFA** 都是有穷状态机：
+- **有穷自动机** 和 **有限状态机** 本质一样，只是叫法不同。  
+- **DFA 和 NFA** 都是有穷自动机：
   - DFA 状态转移确定，NFA 状态转移不确定且可能有 $ε$ 转移。  
   - DFA 更高效，但可能需要更多状态；NFA 更简洁，但实现复杂。  
   - NFA 可以转化为等价的 DFA。

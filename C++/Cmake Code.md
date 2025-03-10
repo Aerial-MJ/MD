@@ -498,6 +498,43 @@ make
 
    - 通过选项选择优化级别或调试模式。
 
+   >在 Linux 下使用 CMake，你可以通过 `CMAKE_BUILD_TYPE` 选项选择不同的优化级别或调试模式。例如，常见的构建类型包括：
+   >
+   >- `Debug`：包含调试信息，不进行优化（`-g`）。
+   >- `Release`：开启优化，不包含调试信息（`-O3`）。
+   >- `RelWithDebInfo`：优化并保留调试信息（`-O2 -g`）。
+   >- `MinSizeRel`：优化代码以最小化可执行文件大小（`-Os`）。
+   >
+   >### 设置构建类型
+   >可以在 CMake 配置阶段指定：
+   >```sh
+   >cmake -DCMAKE_BUILD_TYPE=Release ..
+   >```
+   >或者：
+   >```sh
+   >cmake -DCMAKE_BUILD_TYPE=Debug ..
+   >```
+   >
+   >### CMakeLists.txt 配置
+   >在 `CMakeLists.txt` 中，也可以通过 `CMAKE_BUILD_TYPE` 设置不同编译选项：
+   >```cmake
+   >if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+   >    message("Debug mode enabled")
+   >    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+   >elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+   >    message("Release mode enabled")
+   >    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+   >endif()
+   >```
+   >
+   >### 多配置生成器（如 Ninja Multi-Config, MSVC）
+   >某些生成器（如 Ninja Multi-Config 或 Visual Studio）支持多种构建类型并在构建时选择：
+   >```sh
+   >cmake --build . --config Release
+   >cmake --build . --config Debug
+   >```
+   >在这些情况下，可以使用 `CMAKE_CONFIGURATION_TYPES` 指定多个构建类型。
+
 3. **指定编译器**：
 
    - 使用 `CMAKE_C_COMPILER` 和 `CMAKE_CXX_COMPILER`指定编译器：

@@ -11,7 +11,7 @@
 
   通常在 Windows 上使用的**g++**
 
-   是来自 MinGW（Minimalist GNU for Windows）或 Cygwin 等环境，这些环境将 GNU 编译器工具链移植到 Windows。
+  是来自 MinGW（Minimalist GNU for Windows）或 Cygwin 等环境，这些环境将 GNU 编译器工具链移植到 Windows。
 
   - **MinGW**：生成与 Windows 原生兼容的可执行文件。
   - **Cygwin**：模拟类似 POSIX 的环境，但需要依赖 Cygwin 的动态链接库。

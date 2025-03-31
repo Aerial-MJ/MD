@@ -35,11 +35,11 @@ CUDA 的整体架构包括以下几个关键部分：
 
 CUDA支持多种语言，如C，C++，Python，Fortran等，本文中的示例主要是C/C++语言。CUDA C在标准C的基础上增加了一些标准函数，编译指令等以实现对GPU的控制。CUDA API采用分层设计，从底向上有[CUDA Driver API](https://zhida.zhihu.com/search?content_id=249848054&content_type=Article&match_order=1&q=CUDA+Driver+API&zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NDI0NjExMjYsInEiOiJDVURBIERyaXZlciBBUEkiLCJ6aGlkYV9zb3VyY2UiOiJlbnRpdHkiLCJjb250ZW50X2lkIjoyNDk4NDgwNTQsImNvbnRlbnRfdHlwZSI6IkFydGljbGUiLCJtYXRjaF9vcmRlciI6MSwiemRfdG9rZW4iOm51bGx9.zjS-imc24ZTiGjWO9a9h0BVsG2SL3t8wtIm84FTtTbk&zhida_source=entity)，[CUDA Runtime API](https://zhida.zhihu.com/search?content_id=249848054&content_type=Article&match_order=1&q=CUDA+Runtime+API&zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NDI0NjExMjYsInEiOiJDVURBIFJ1bnRpbWUgQVBJIiwiemhpZGFfc291cmNlIjoiZW50aXR5IiwiY29udGVudF9pZCI6MjQ5ODQ4MDU0LCJjb250ZW50X3R5cGUiOiJBcnRpY2xlIiwibWF0Y2hfb3JkZXIiOjEsInpkX3Rva2VuIjpudWxsfQ.s3lQR74i1KbKdD5-GQaMW5NncvWKDgxLbMPckZMxjsI&zhida_source=entity)，CUDA Libraries（在基础API之上封装的一些库，例如cublas，cutlass等等）。用户开发CUDA程序可以基于Driver API或Runtime API（一般都是使用Runtime API），但是不能同时使用两者。（本系列文章中的示例代码均基于CUDA Runtime API）
 
-![image-20250318170054274](..\..\Image\image-20250318170054274.png)
+![image-20250318170054274](../../Image/image-20250318170054274.png)
 
 CUDA程序通过**nvcc**编译器进行编译，CUDA程序中包含CPU部分代码和GPU部分代码，编译时会分别编译，CPU部分代码叫**host code**，GPU部分代码一般叫**device code**。
 
-![image-20250318170132220](..\..\Image\image-20250318170132220.png)
+![image-20250318170132220](../../Image/image-20250318170132220.png)
 
 #### CUDA 与 PyTorch、TensorFlow 的关系
 
@@ -68,7 +68,7 @@ print(c)  # tensor([5., 7., 9.], device='cuda:0')
 | **cuDNN**       | 专为深度学习优化的 GPU 加速库，是 PyTorch、TensorFlow 等框架的核心依赖。 |
 | **NVIDIA 驱动** | GPU 的底层驱动程序，CUDA 必须依赖正确版本的驱动才能运行。    |
 
-### Driver / Runtime API
+### Driver API/ Runtime API
 
 ✅ **大多数情况下，安装 NVIDIA 驱动时，Driver API 会自动安装。**
 ✅ **使用 PyTorch、TensorFlow 等深度学习框架时，通常无需额外关注 Driver API。若使用 PyTorch、TensorFlow 等框架，通常不需要直接调用 Driver API，安装 NVIDIA 驱动和 CUDA Runtime API 即可。**

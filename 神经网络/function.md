@@ -203,6 +203,78 @@ print(my_list)
 
 在 `numpy` 中，`shape` 和 `size` 是两个用于描述数组（`ndarray`）结构的属性。它们有不同的用途：
 
+### numpy.array
+
+numpy.array：总是复制（除非你显式指定 copy=False）
+
+```python
+import numpy as np
+
+a = [1, 2, 3]
+b = np.asarray(a)
+```
+
+特点：
+
+总是生成一个**新的数组副本**，即使你传进去的已经是 NumPy 数组。
+
+更灵活，比如你可以传 `dtype=...、copy=True/False` 等参数。
+
+### numpy.asarray
+
+```python
+import numpy as np
+
+a = [1, 2, 3]
+b = np.asarray(a)
+
+```
+
+**如果输入已经是 NumPy 数组**，它不会复制内存，只是返回原数组的“视图”。
+
+如果输入是列表、元组等其他格式，它会**转成 NumPy 数组**。
+
+通常用于**提高兼容性**或**避免重复复制数据**。
+
+```python
+a = np.array([1, 2, 3])
+b = np.asarray(a)
+print(a is b)  # True，不会复制
+```
+
+**举例对比**
+
+```python
+lst = [1, 2, 3]
+arr1 = np.array(lst)
+arr2 = np.asarray(lst)
+
+arr1[0] = 100
+print(lst)  # [1, 2, 3] —— 原始列表不变
+
+arr2[0] = 200
+print(lst)  # [1, 2, 3] —— 仍然不变，因为 asarray 也是拷贝了
+```
+
+但是如果传入的是 NumPy 数组：
+
+```python
+a = np.array([1, 2, 3])
+b = np.asarray(a)
+b[0] = 99
+print(a)  # [99 2 3] —— 没有复制，是引用
+```
+
+### np.zeros, np.ones, np.empty, np.full
+
+这些方法是用于**创建新数组**，不是用已有的数据转换为数组。
+
+```python
+np.zeros((3,))        # 创建一个全是0的一维数组
+np.ones((2, 2))       # 创建一个2x2全是1的数组
+np.empty((2,))        # 创建未初始化的数组（内容随机）
+```
+
 ### ndarray.shape
    - **作用**：返回数组每个维度的大小，表示数组的形状。
    - **返回值**：`shape` 返回一个包含各维度大小的元组。例如，二维数组的 `shape` 为 `(rows, columns)`。
@@ -818,7 +890,7 @@ print(result)  # 输出: [[1, 2, 3], [4, 5, 6]]
 - **`itertools.chain()`**：适用于多个列表的拼接，性能更优。
 - **列表推导式**：适用于条件拼接或在拼接时需要做操作的情况。
 
-### random
+## random
 
 Python 的 `random` 模块提供了用于生成伪随机数的功能，以及其他与随机性相关的实用工具。它是 Python 标准库的一部分，基于 Mersenne Twister 算法实现。
 

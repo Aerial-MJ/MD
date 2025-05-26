@@ -126,4 +126,4 @@ public String handlePost() {
 
 因此，`@RequestMapping` 本身既可以用于处理GET请求，也可以用于处理POST请求，具体取决于你是否指定 `method` 属性或者使用了上述的组合注解。
 
-![image_service](C:/Users/19409/Desktop/MD/Image/image_service.png)
+![image_service](../../../Image/image_service.png)

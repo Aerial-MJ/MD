@@ -292,3 +292,105 @@ find_md_files_and_replace(directory_path)
 
 ```
 
+## 5、将图片的路径修改成相对路径
+
+```python
+import os
+import re
+
+def replace_with_relative_image_path(file_path, image_root):
+    image_pattern = re.compile(r'!\[(.*?)\]\((?:file:///)?(?:[A-Za-z]:)?[/\\]+(?:.*?[/\\])*Image[/\\]([^)]+)\)')
+    # 匹配 Markdown 中类似这样的图片路径：
+    # ![描述](C:/Users/xxx/Desktop/MD/Image/xxx.png)
+    """
+    
+    """
+
+
+    changed = False
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    # 打开一个 Markdown 文件，读取它的全部内容，存在 content 变量中。
+    # encoding='utf-8' 确保读取中文不会乱码。
+
+
+    # 计算当前md文件相对image文件夹的路径
+    md_dir = os.path.dirname(file_path)
+    relative_image_path = os.path.relpath(image_root, md_dir).replace('\\', '/')
+    #md_dir 获取当前 Markdown 文件所在的目录路径。
+    #os.path.relpath(image_root, md_dir)   计算从 md_dir 到 image_root 的相对路径。
+    #.replace('\\', '/') 是为了统一使用正斜杠（Markdown 里更标准）。
+
+
+    # 替换图片路径为相对路径
+    def replacer(match):
+        image_name = match.group(2).replace('\\', '/')
+        return f'![{match.group(1)}]({relative_image_path}/{image_name})'
+
+        #"""
+        #match.group(1) 是图片描述，例如 image-xxx
+        #match.group(2) 是图片路径名称，例如 img001.png
+        #它会返回新的 Markdown 图片语法，例如：![image-xxx](../../Image/img001.png)
+        #"""
+
+    new_content, count = image_pattern.subn(replacer, content)
+
+    if count > 0:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print(f"Updated {file_path} with {count} replacements.")
+        changed = True
+
+    return changed
+
+def process_all_md_files(md_root, image_root):
+    for root, _, files in os.walk(md_root):
+        for file in files:
+            if file.endswith('.md'):
+                file_path = os.path.join(root, file)
+                replace_with_relative_image_path(file_path, image_root)
+                
+#从 md_root 这个目录开始，递归地遍历它的所有子文件夹，每走到一个文件夹，就返回一组三个值。
+#这三个值是：
+#变量名	含义
+#root	当前遍历到的这个文件夹的路径
+#dirs（我们写成 _）	当前文件夹里的所有子文件夹的名字列表（我们这次不关心它，所以用 _ 忽略）
+#files	当前文件夹里的所有文件的名字列表（注意：只是名字，不带路径）
+
+
+# 修改成你的实际路径
+md_root_dir = r'C:\Users\19409\Desktop\MD'
+image_dir = os.path.join(md_root_dir, 'Image')
+
+process_all_md_files(md_root_dir, image_dir)
+
+```
+
+### 正则对象
+
+`image_pattern = re.compile( ... )
+
+这行代码的返回值是一个**“正则表达式对象”**，也叫 re.Pattern 对象。这个对象能用来在字符串中查找、匹配和替换我们设定好的模式（**pattern**）。
+
+### 正则的捕获组
+
+正则中的 `()`：
+
+- `()` 是捕获组：你可以用 `group(n)` 来取
+- `(?:...)` 是非捕获组：不进入 `group(n)`，只用于结构分组或控制匹配
+
+所以你这个正则：
+
+- `group(1)` 是 `![描述]` 里的描述文字
+- `group(2)` 是 `Image/xxx.png` 里的文件名（相对于 Image 文件夹）
+
+### image_pattern
+
+它是通过方法来发挥作用的，最常用的几个是：
+
+| 方法名                               | 作用                         | 示例                                       |
+| ------------------------------------ | ---------------------------- | ------------------------------------------ |
+| `image_pattern.search(text)`         | 在 `text` 中查找第一个匹配项 | 返回一个 `match` 对象或 `None`             |
+| `image_pattern.findall(text)`        | 查找所有匹配项，返回元组列表 | `[(描述1, 图片名1), (描述2, 图片名2)]`     |
+| `image_pattern.sub(replacer, text)`  | 替换所有匹配项，返回新字符串 | 会把匹配的内容替换成 replacer 生成的新内容 |
+| `image_pattern.subn(replacer, text)` | 同上，但额外返回替换的数量   | `(new_text, 替换次数)`                     |

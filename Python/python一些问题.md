@@ -368,7 +368,7 @@ process_all_md_files(md_root_dir, image_dir)
 
 ### 正则对象
 
-`image_pattern = re.compile( ... )
+`image_pattern = re.compile( ... )`
 
 这行代码的返回值是一个**“正则表达式对象”**，也叫 re.Pattern 对象。这个对象能用来在字符串中查找、匹配和替换我们设定好的模式（**pattern**）。
 

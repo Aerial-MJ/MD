@@ -360,7 +360,7 @@ def process_all_md_files(md_root, image_root):
 
 # 修改成你的实际路径
 md_root_dir = r'C:\Users\19409\Desktop\MD'
-image_dir = os.path.join(md_root_dir, 'Image')
+image_dir = os.path.join(mdroot_dir, 'Image')
 
 process_all_md_files(md_root_dir, image_dir)
 
@@ -394,3 +394,56 @@ process_all_md_files(md_root_dir, image_dir)
 | `image_pattern.findall(text)`        | 查找所有匹配项，返回元组列表 | `[(描述1, 图片名1), (描述2, 图片名2)]`     |
 | `image_pattern.sub(replacer, text)`  | 替换所有匹配项，返回新字符串 | 会把匹配的内容替换成 replacer 生成的新内容 |
 | `image_pattern.subn(replacer, text)` | 同上，但额外返回替换的数量   | `(new_text, 替换次数)`                     |
+
+### re.search和 group() 是一对搭档
+
+`re.search` 用来**查找第一个匹配项**，返回的是一个 `Match` 对象，而这个对象上可以用 `.group()`、`.groups()` 等方法提取具体的匹配内容。
+
+------
+
+### 举个例子：
+
+```python
+import re
+
+text = "我的邮箱是 test@example.com，请联系我。"
+match = re.search(r"(\w+)@(\w+)\.com", text)
+
+if match:
+    print(match.group(0))  # 整个匹配项：test@example.com
+    print(match.group(1))  # 第一个括号里的内容：test
+    print(match.group(2))  # 第二个括号里的内容：example
+    print(match.groups())  # 返回所有分组：('test', 'example')
+```
+
+------
+
+### 那为啥 `findall()` 没有 `.group()`？
+
+因为：
+
+- `re.search()` 返回一个 **Match 对象**（可以使用 `.group()` 方法）
+- `re.findall()` 直接返回一个 **字符串列表（或元组列表）**
+  - 所以不能调用 `.group()`，你直接用 `[]` 取值
+
+------
+
+### 总结一下：
+
+| 方法          | 返回类型              | 用途                                    |
+| ------------- | --------------------- | --------------------------------------- |
+| `re.search`   | `Match` 对象          | 查找第一个匹配，可以用 `.group()` 提取  |
+| `re.match`    | `Match` 对象          | 从字符串开头匹配一个，可以用 `.group()` |
+| `re.findall`  | 字符串列表 / 元组列表 | 找出所有匹配，不能用 `.group()`         |
+| `re.finditer` | `Match` 对象的迭代器  | 所有匹配+保留位置，也可以 `.group()`    |
+
+------
+
+如果你喜欢用 `.group()` 但又想匹配多个，可以试试 `re.finditer()`：
+
+```python
+matches = re.finditer(r"<\|im_start\|>assistant\n(.*?)<\|im_end\|>", response, re.DOTALL)
+for m in matches:
+    print(m.group(1))  # 就能一个个拿到内容
+```
+

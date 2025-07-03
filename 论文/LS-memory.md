@@ -55,7 +55,7 @@
 | **MacroAnalystAgent**        | 中期     | 当前宏观总结、风险标签等    | 宏观经济、政策导向、市场环境 |
 | **SentimentAnalystAgent**    | 短期     | 当日/当周新闻摘要、情绪得分 | 舆论风向、市场短期反应预测   |
 | **TechAnalystAgent**         | 短期     | K 线、指标、价格趋势等      | 技术形态判断、交易点确认     |
-| **RiskControlAgent**         | 实时     | VIX、波动率、回撤等         | 风险等级评估、止损止盈建议   |
+| **RiskControlAgent**         | 短期     | VIX、波动率、回撤等         | 风险等级评估、止损止盈建议   |
 
 
 
@@ -75,3 +75,88 @@
 | ------------------- | ------------------------------------------------ | -------------------------------------- | -------------- |
 | 👔 CIO（首席投资官） | 综合评估各智能体建议，制定最终投资策略与资产配置 | 各分析师输出、市场反馈、策略回测结果等 | 综合（短中长） |
 
+# Rag
+
+非常好，这份代码已经能正确区分训练集和测试集，但目前只遍历了 **`2024-08-01` 之后的数据（包含训练集和部分测试集）**，**没有处理完整的 2025 年及以后的所有日期**。
+
+------
+
+### ✅ 你需要的是：
+
+- 遍历 **整个 rag_text_with_embedding.csv** 中的所有日期（包含训练集和测试集），对每一天都调用 `generate_suggestion_by_event_range(...)`。
+- 对于不同的日期：
+  - 如果 `date ≤ 2024-12-31`，调用时 `start_event="2024-08-01"`，`end_event="2024-12-31"`。
+  - 如果 `date ≥ 2025-01-01`，则 `start_event="2024-08-01"`，`end_event=当前日期的前一日`，避免未来泄露。
+
+------
+
+### ✅ 改进版本代码如下：
+
+```python
+import pandas as pd
+import numpy as np
+import faiss
+from tqdm import tqdm
+from datetime import datetime, timedelta
+from rag import generate_suggestion_by_event_range
+
+# 加载数据
+df = pd.read_csv("./rag_text_with_embedding.csv")
+df["embedding"] = df["embedding"].apply(eval)
+df["date"] = pd.to_datetime(df["date"])
+
+# 定义时间区间
+train_start = pd.to_datetime("2024-08-01")
+train_end = pd.to_datetime("2024-12-31")
+
+# 遍历所有时间（训练+测试）
+all_dates = df["date"].sort_values().unique()
+
+results = []
+
+for current_date in tqdm(all_dates):
+    # 跳过当前没有 embedding 的情况
+    current_rows = df[df["date"] == current_date]
+    if current_rows.empty:
+        continue
+
+    # 日期条件判断
+    if current_date <= train_end:
+        start_event = train_start.strftime("%Y-%m-%d")
+        end_event = train_end.strftime("%Y-%m-%d")
+    else:
+        start_event = train_start.strftime("%Y-%m-%d")
+        end_event = (current_date - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    try:
+        suggestion = generate_suggestion_by_event_range(
+            start_event=start_event,
+            end_event=end_event,
+            target_date=current_date.strftime("%Y-%m-%d")
+        )
+    except ValueError as e:
+        print(f"[跳过] {current_date.strftime('%Y-%m-%d')}：{e}")
+        continue
+
+    results.append({
+        "date": current_date.strftime("%Y-%m-%d"),
+        **suggestion
+    })
+
+# 保存结果
+pd.DataFrame(results).to_csv("rag_agent_suggestions.csv", index=False)
+print("✅ 已保存 rag_agent_suggestions.csv")
+```
+
+------
+
+### ✅ 核心改动说明：
+
+- 遍历了完整日期：`all_dates = df["date"].sort_values().unique()`。
+- 训练集：用固定窗口。
+- 测试集：动态变化窗口，避免未来数据。
+- 增加异常捕获，防止 `"No data found"` 报错中断整个流程。
+
+------
+
+你可以运行这个版本来生成完整的 RAG Agent 建议表格。如果你想并行跑多进程、或者增加缓存优化，我也可以帮你做后续优化。是否需要？

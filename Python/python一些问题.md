@@ -301,7 +301,7 @@ import re
 def replace_with_relative_image_path(file_path, image_root):
     image_pattern = re.compile(r'!\[(.*?)\]\((?:file:///)?(?:[A-Za-z]:)?[/\\]+(?:.*?[/\\])*Image[/\\]([^)]+)\)')
     # 匹配 Markdown 中类似这样的图片路径：
-    # ![描述](C:/Users/xxx/Desktop/MD/Image/xxx.png)
+    # ![描述](../Image/xxx.png)
     """
     
     """

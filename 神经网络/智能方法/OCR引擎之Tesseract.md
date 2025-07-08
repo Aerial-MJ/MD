@@ -91,7 +91,7 @@ osd
 
 ## python 示例
 
-```
+```python
 import cv2
 from PIL import Image
 

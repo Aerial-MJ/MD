@@ -1,3 +1,5 @@
+# 传统LLM
+
 ## 总体处理顺序（从底层到高层）
 
 ```
@@ -105,3 +107,22 @@ Semantic Role Labeling (SRL)
    ↓
 Semantic Parsing / Understanding
 ```
+
+# ViT
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

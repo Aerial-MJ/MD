@@ -179,3 +179,53 @@ $ mAP=1N∑i=1NAPimAP = \frac{1}{N}\sum_{i=1}^N AP_i$
 - **Precision** → 报的对不对
 - **Recall** → 漏没漏
 - **mAP** → 综合成绩
+
+## (AUC-ROC)（AUC-PR）
+
+**ROC 曲线下面积 (AUC-ROC)** 或 **Precision-Recall 曲线下面积 (AUC-PR)**。我帮你梳理一下两者的区别和含义。
+
+------
+
+### ROC 曲线 (Receiver Operating Characteristic Curve)
+
+- **横轴 (X)**：False Positive Rate (FPR) = FP / (FP + TN)
+- **纵轴 (Y)**：True Positive Rate (TPR) = TP / (TP + FN) = Recall
+
+**曲线意义**：
+
+- ROC 曲线显示了分类器在不同阈值下的**权衡**：更容易预测正例（高Recall） vs. 控制误报（低FPR）。
+- 曲线越靠左上角 → 分类器越好。
+
+**AUC-ROC**（Area Under Curve）：
+
+- 表示曲线下的面积，范围 [0,1]
+- 0.5 → 相当于随机猜
+- 1 → 完美分类
+
+> 直观理解：AUC-ROC 越大，说明模型越容易把正例和负例分开。
+
+------
+
+### Precision-Recall 曲线 (PR Curve)
+
+- **横轴 (X)**：Recall = TP / (TP + FN)
+- **纵轴 (Y)**：Precision = TP / (TP + FP)
+
+**曲线意义**：
+
+- 更适合 **类别不平衡** 的情况（正例很少）
+- 高 Precision + 高 Recall → 理想分类器
+
+**AUC-PR**：
+
+- PR 曲线下的面积，也越大越好
+
+> 与 ROC 不同：在正负样本极度不平衡时，PR-AUC 更能体现模型能力。
+
+------
+
+### 总结
+
+- **ROC-AUC**：整体区分能力（对称，不依赖正负比例）
+- **PR-AUC**：对少数类表现更敏感（类别不平衡时更重要）
+- 两者都是用曲线下面积衡量 **分类器的准确度或区分能力**。

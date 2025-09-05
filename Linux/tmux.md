@@ -1,102 +1,194 @@
 # Tmux
 
-Tmux是一个强大的终端复用器，能有效提高开发效率。
+希望在 Linux 服务器后台自动运行，不用一直盯着终端。
 
-Tmux是一个终端复用器（terminal multiplexer），属于常用的开发工具，学会了之后可以大大的提高工作效率。
+------
 
-在使用tmux之前我们先了解关于tmux的几个名词：
+## 1. 安装 tmux
 
-- `session`，会话（任务）：会话使得用户或程序能够管理和协调相关的进程。例如，当你启动一个终端会话时，所有在该终端中启动的程序都属于同一个会话。
-- `windows`，窗口
-- `pane`，窗格
-
-在普通的终端中，窗口和其中由于session（会话）而启动的进程是连在一起的，关闭窗口，session就结束了，session内部的进程也会终止，不管是否运行完。但是在具体使用中，我们希望当前的session隐藏起来，在终端中做其他事情，但是又不希望session及其进程被关闭。这样就需要用到tmux，对session进行解绑。之后再想继续出来这个session的时候，再次绑定就可以回到之前的工作状态。
-
-对于**window可以理解为一个工作区，一个窗口**。
-
-对于一个session，可以创建好几个window，对于每一个窗口，都可以将其分解为几个pane小窗格。
-
-所以，关于session、window、pane的关系是：
-
-$ [pane∈window]∈session $
-
-## Tmux操作
-
-### Tmux安装
+大多数 Linux 服务器没自带，需要先安装：
 
 ```bash
-# Ubuntu or Debian
-sudo apt-get install tmux
+# Debian/Ubuntu
+sudo apt update && sudo apt install tmux -y
 
-# CentOS or Fedora
-sudo yum install tmux
-
-# Mac
-brew install tmux
+# CentOS/RHEL
+sudo yum install tmux -y
 ```
 
-### 启动
-新建session，可以在terminal上输入tmux命令，会自动生成一个id为0的session
-```bash
-tmux
-```
-也可以在建立时显式地说明session的名字，这个名字可以用于解绑后快速的重新进入该session：
-```bash
-tmux new -s your-session-name
-```
-### 分离
-在tmux窗口中，按下ctrl+b d或者输入以下命令，就会将当前session与窗口分离，session转到后台执行：
-```bash
-tmux detach
-```
-### 退出
+------
 
-如果你想退出该session，可以杀死session：
+## 2. 创建会话
+
+启动一个新会话，命名为 `download`：
 
 ```bash
-tmux kill-session -t your-session-name
-```
-当然，也可以使用ctrl+d关闭该session的所有窗口来退出该session。
-### 绑定、解绑、切换session
-假设现在正处于session1，使用分离操作就是将session1进行解绑:
-```bash
-tmux detach
-```
-而如果你想再次绑定session1，可以使用命令：
-```bash
-tmux attach-session -t your-session-name
-```
-切换到指定session：
-```bash
-tmux switch-session -t your-session-name
-```
-### 重命名session
-```bash
-tmux rename-session -t old-session new-session
+tmux new -s download
 ```
 
-## window操作
+你会进入一个新的 tmux 界面，看起来和普通终端差不多。
 
-一个session可以有好几个window窗口。
+------
 
-### 新建窗口
+## 3. 在会话里执行下载
+
+进入项目目录并执行下载命令：
 
 ```bash
-# 新建一个指定名称的窗口
-tmux new-window -n your-window-name
+cd movie_agent/weight
+git lfs install
+git clone https://huggingface.co/weijiawu/MovieAgent-ROICtrl-Frozen
 ```
 
-### 切换窗口
+这时下载会跑起来。
 
-- ctrl+b c: 创建一个新窗口（状态栏会显示多个窗口的信息）
-- ctrl+b p: 切换到上一个窗口（按照状态栏的顺序）
-- ctrl+b n: 切换到下一个窗口
-- ctrl+b w: 从列表中选择窗口（这个最好用）
+------
 
-### 重命名窗口
+## 4. 分离会话（后台运行）
 
-执行：
+下载过程中，你可以按下组合键 **`Ctrl+b` 然后 `d`**
+ （意思是先按住 `Ctrl`，点 `b`，松开，再按 `d`）。
+
+这样你就“离开”了 tmux 会话，但下载任务还在后台继续跑。
+
+------
+
+## 5. 恢复会话
+
+如果你想再回来查看下载进度，输入：
 
 ```bash
-tmux rename-window -t old_name new_name
+tmux attach -t download
 ```
+
+如果你有多个会话，可以先列出来：
+
+```bash
+tmux ls
+```
+
+再 attach 对应的会话。
+
+------
+
+## 6. 结束会话
+
+下载完成后，可以在 tmux 窗口里输入 `exit`，会话就会关闭。
+ 或者在外部直接 kill：
+
+```bash
+tmux kill-session -t download
+```
+
+------
+
+## 7. 小技巧
+
+- **后台直接启动会话并执行命令**（不进入界面）：
+
+  ```bash
+  tmux new -d -s download "cd movie_agent/weight && git lfs install && git clone https://huggingface.co/weijiawu/MovieAgent-ROICtrl-Frozen"
+  ```
+
+- **查看日志输出**：
+   如果你想把下载输出保存，命令写成：
+
+  ```bash
+  tmux new -d -s download "cd movie_agent/weight && git lfs install && git clone https://huggingface.co/weijiawu/MovieAgent-ROICtrl-Frozen > download.log 2>&1"
+  ```
+
+  然后随时用 `tail -f download.log` 看进度。
+
+------
+
+✅ 总结：
+ tmux 的核心流程就是 **new → 跑任务 → detach → attach → exit**。
+ 这样就算你断开 ssh，任务也不会中断。
+
+# tmux window（窗口）
+
+是 tmux 的一个核心概念。
+很多人第一次用 tmux 只会 `new` / `attach` / `detach`，但其实 tmux 比 screen 强大很多，其中 **window** 就是它的特色之一。
+
+------
+
+## 🔹 tmux 的三层结构
+
+可以把 tmux 想象成一个「多层工作台」：
+
+1. **Session（会话）**
+   - 最大单位，一个 session 可以理解为「一个工作区」。
+   - 你常用的 `tmux new -s download` 就是开一个会话。
+2. **Window（窗口）**
+   - 相当于 session 里的「标签页」。
+   - 一个 session 可以有多个 window，每个 window 就像一个全新的终端界面。
+   - 默认第一个 window 叫 `0`，第二个叫 `1`，依次类推。
+3. **Pane（面板）**
+   - 每个 window 可以再分成多个 pane（分屏）。
+   - 就像在同一个窗口里分成上下/左右的小格子，每个格子都是一个独立终端。
+
+👉 类比一下：
+
+- **Session = 浏览器**
+- **Window = 标签页**
+- **Pane = 标签页里的分屏**
+
+------
+
+## 🔹 关于 Window（窗口）
+
+### 1. 新建窗口
+
+在 tmux 会话里按：
+
+```
+Ctrl+b c
+```
+
+就会新建一个窗口，进入一个新的 shell，编号会从 `1` 开始。
+
+### 2. 切换窗口
+
+- `Ctrl+b n` → 下一个窗口 (next)
+- `Ctrl+b p` → 上一个窗口 (previous)
+- `Ctrl+b <数字>` → 直接跳到某个窗口，比如 `Ctrl+b 0` 回到第 0 个窗口。
+
+### 3. 查看窗口列表
+
+```
+Ctrl+b w
+```
+
+会弹出一个窗口列表，选择你要去的。
+
+### 4. 重命名窗口
+
+```
+Ctrl+b ,
+```
+
+可以给窗口改名字，比如 `download`、`train`，方便区分。
+
+------
+
+## 🔹 使用场景举例
+
+假设你开了一个 `tmux` 会话，叫 `project`，里面你可以：
+
+- **window 0**：专门下载权重（git clone）
+- **window 1**：跑训练脚本（python train.py）
+- **window 2**：实时看日志（tail -f log.txt）
+
+你可以在不同的窗口间切换，就像浏览器开了多个标签页一样。
+这样就不需要开多个 ssh 连接了。
+
+------
+
+✅ 总结：
+
+- **Session**：整个工作区。
+- **Window**：会话里的一个「标签页」。
+- **Pane**：窗口里的分屏小终端。
+
+所以 `tmux` 能让你在一个 SSH 连接里同时管理「多个标签页 + 多个分屏」，特别适合服务器开发。
+

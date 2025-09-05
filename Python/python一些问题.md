@@ -1,5 +1,103 @@
 # Python基础
 
+## Json
+
+`json.dump` 和 `json.load` 来自 Python 的标准库 **json**，它们主要用来做 **JSON 和 Python 数据类型之间的转换**。我来详细解释一下：
+
+------
+
+### 基本概念
+
+- **JSON (JavaScript Object Notation)**
+   一种轻量级的数据交换格式，常见于接口请求、配置文件，比如：
+
+  ```json
+  {
+    "name": "Alice",
+    "age": 20,
+    "is_student": true
+  }
+  ```
+
+- **Python 的数据结构**（dict, list, str, int, bool, None 等）和 JSON 数据有天然的映射关系。
+   比如：
+
+  ```python
+  {"name": "Alice", "age": 20, "is_student": True}
+  ```
+
+------
+
+### json.dump(obj, fp, ...)
+
+把 **Python 对象** 转换成 JSON 格式，并**写入文件**。
+
+- **dump = dump into file**
+
+示例：
+
+```python
+import json
+
+data = {"name": "Alice", "age": 20, "is_student": True}
+
+with open("data.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=4)  
+```
+
+这样会在 `data.json` 文件里写入：
+
+```json
+{
+    "name": "Alice",
+    "age": 20,
+    "is_student": true
+}
+```
+
+------
+
+### json.load(fp)
+
+从 **JSON 文件**中读取数据，并转换成 **Python 对象**。
+
+- **load = load from file**
+
+示例：
+
+```python
+import json
+
+with open("data.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+print(data)
+print(type(data))
+```
+
+输出：
+
+```
+{'name': 'Alice', 'age': 20, 'is_student': True}
+<class 'dict'>
+```
+
+------
+
+### 对比另外两个常用函数
+
+- `json.dumps(obj)`：把 Python 对象转成 JSON **字符串**（s = string）。
+- `json.loads(str)`：把 JSON **字符串**转成 Python 对象。
+
+------
+
+总结：
+
+- `json.dump`：Python 对象 → JSON，写入文件
+- `json.load`：从文件中读取 JSON → Python 对象
+- `json.dumps`：Python 对象 → JSON 字符串
+- `json.loads`：JSON 字符串 → Python 对象
+
 ## os.path.join
 
 `os.path.join()` 是 Python 中 `os.path` 模块提供的一个方法，用于连接路径字符串。

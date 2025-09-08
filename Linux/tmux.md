@@ -105,7 +105,7 @@ tmux kill-session -t download
  tmux 的核心流程就是 **new → 跑任务 → detach → attach → exit**。
  这样就算你断开 ssh，任务也不会中断。
 
-# tmux window（窗口）
+# Tmux window（窗口）
 
 是 tmux 的一个核心概念。
 很多人第一次用 tmux 只会 `new` / `attach` / `detach`，但其实 tmux 比 screen 强大很多，其中 **window** 就是它的特色之一。

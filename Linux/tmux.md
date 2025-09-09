@@ -1,8 +1,69 @@
-# Tmux
-
 希望在 Linux 服务器后台自动运行，不用一直盯着终端。
 
+在 Linux 下通常有几种做法：
+
 ------
+
+## 🔹 方法 1: `nohup` + `&`
+
+最常见的后台运行方式：
+
+```
+cd movie_agent/weight
+git lfs install
+nohup git clone https://huggingface.co/weijiawu/MovieAgent-ROICtrl-Frozen > download.log 2>&1 &
+```
+
+- `nohup`：忽略挂起信号，即使关掉终端也继续运行
+
+- `> download.log 2>&1`：把标准输出和错误日志都写到 `download.log`
+
+- `&`：放到后台执行
+
+- 查看进度：
+
+  ```
+  tail -f download.log
+  ```
+
+------
+
+## 🔹 方法 2: 使用 `screen`
+
+`screen` 可以开启一个持久会话，随时挂起/恢复：
+
+```
+screen -S download
+git lfs install
+git clone https://huggingface.co/weijiawu/MovieAgent-ROICtrl-Frozen
+```
+
+- 按下 `Ctrl+A` 然后 `D`，即可把 `screen` 会话挂起。
+
+- 想恢复时输入：
+
+  ```
+  screen -r download
+  ```
+
+------
+
+## 🔹 方法 3: 使用 `tmux`
+
+`tmux` 类似 `screen`，但更现代，推荐使用：
+
+```
+tmux new -s download
+git lfs install
+git clone https://huggingface.co/weijiawu/MovieAgent-ROICtrl-Frozen
+```
+
+- 退出会话：`Ctrl+B` 然后 `D`
+- 恢复会话：`tmux attach -t download`
+
+------
+
+# Tmux
 
 ## 1. 安装 tmux
 

@@ -98,6 +98,82 @@ print(type(data))
 - `json.dumps`：Python 对象 → JSON 字符串
 - `json.loads`：JSON 字符串 → Python 对象
 
+## 列表推导式
+
+ **`for ... in ... if ...`** 一般是 Python 里的**列表推导式（List Comprehension）** 或者更一般的**推导式语法**。
+
+它的基本形式是：
+
+```python
+[表达式 for 变量 in 可迭代对象 if 条件]
+```
+
+意思是：
+
+- 从一个可迭代对象里依次取出元素，
+- 对满足条件的元素执行表达式，
+- 并把结果组成一个新的列表。
+
+------
+
+### 举例
+
+1. **简单的 for in**
+
+```python
+nums = [1, 2, 3, 4, 5]
+squares = [x * x for x in nums]
+print(squares)  
+# [1, 4, 9, 16, 25]
+```
+
+1. **加上 if 条件**
+
+```python
+nums = [1, 2, 3, 4, 5]
+even_squares = [x * x for x in nums if x % 2 == 0]
+print(even_squares)
+# [4, 16]
+```
+
+只会保留满足 `x % 2 == 0` 的元素。
+
+1. **复杂一点：字符串处理**
+
+```python
+words = ["apple", "banana", "cherry", "dog"]
+result = [w.upper() for w in words if len(w) > 5]
+print(result)
+# ['BANANA', 'CHERRY']
+```
+
+------
+
+### 扩展：其他推导式
+
+不仅可以生成列表，还能生成：
+
+- **集合推导式**
+
+```python
+{x * 2 for x in [1, 2, 3]}
+# {2, 4, 6}
+```
+
+- **字典推导式**
+
+```python
+{x: x**2 for x in range(5) if x % 2 == 0}
+# {0: 0, 2: 4, 4: 16}
+```
+
+- **生成器表达式**
+
+```python
+(x * 2 for x in range(5))
+# 返回一个生成器对象
+```
+
 ## os.path.join
 
 `os.path.join()` 是 Python 中 `os.path` 模块提供的一个方法，用于连接路径字符串。

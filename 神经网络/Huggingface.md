@@ -1,5 +1,7 @@
 # Hugging Face
 
+## Hugging Face
+
 ### Hugging Face 的操作概览
 
 Hugging Face 主要提供了两个东西：
@@ -277,17 +279,90 @@ chmod a+x hfd.sh
 ./hfd.sh wikitext --dataset --tool aria2c -x 4
 ```
 
+## aria2c
 
+**Aria2c** 是一个强大的命令行下载工具，支持多种协议，包括 **HTTP(S)**、**FTP**、**SFTP**、**BitTorrent** 和 **Metalink**。它以轻量级、多线程和高效著称，能够从多个来源同时下载文件，最大限度地利用带宽资源。
 
+### 核心功能
 
+- **多线程下载**：支持通过 *-x* 参数设置每个服务器的最大连接数（最多16个线程），并通过 *-s* 参数将文件分片并发下载。
+- **多协议支持**：可以同时从 HTTP(S)、FTP 和 BitTorrent 网络下载文件。
+- **断点续传**：通过 *-c* 参数实现下载中断后的续传功能。
+- **批量下载**：支持通过 *-i* 参数读取包含多个下载链接的文件，进行批量任务处理。
+- **数据完整性校验**：借助 Metalink 的分块校验功能，确保下载数据的完整性。
 
+### 安装与配置
 
+在不同系统上，安装 Aria2c 的方法略有不同：
 
+- **Debian/Ubuntu**：使用 `sudo apt install aria2`
+- **CentOS**：启用 EPEL 仓库后，运行 `sudo yum install aria2`
+- **MacOS**：通过 Homebrew 安装，运行 `brew install aria2`
 
+配置文件通常位于 *~/.aria2/aria2.conf*，可以设置下载目录、最大连接数、RPC 服务等。例如：
 
+```
+dir=/path/to/downloads
+max-concurrent-downloads=5
+enable-rpc=true
+rpc-secret=your_password
+split=16
+max-connection-per-server=16
+```
 
+### 常用命令示例
 
+- **单文件下载**：
 
+```
+aria2c -s 8 http://example.com/large_file.iso
+```
+
+- **批量下载**：创建包含多个链接的文本文件 *links.txt*，然后运行：
+
+```
+aria2c -i links.txt
+```
+
+- **启动 RPC 服务**：
+
+```
+aria2c --conf-path=/path/to/aria2.conf -D
+```
+
+### 高级功能
+
+- **限速**：通过 *--max-download-limit* 和 *--max-upload-limit* 控制带宽。
+
+```
+aria2c --max-download-limit=1M http://example.com/file.iso
+```
+
+- **远程控制**：结合 WebUI（如 AriaNg）或命令行工具（如 aria2p），通过 JSON-RPC 管理下载任务。
+
+### 使用场景
+
+Aria2c 适用于需要高效下载大文件、多文件或需要断点续传的场景。它还可以集成到自动化脚本中，成为开发者和数据分析人员的得力工具。
+
+## aria2 和 aria2c
+
+其实 **aria2** 和 **aria2c** 是同一个软件的不同调用方式，区别主要如下：
+
+------
+
+### 1. 名称来源
+
+- **aria2**：软件的官方名称，本身是指整个下载工具包。
+- **aria2c**：aria2 的 **命令行客户端（client）**，是最常用的启动方式。
+
+在大多数系统中，你在命令行中运行 `aria2` 或 `aria2c`，本质上调用的都是同一个程序，只是官方推荐使用 `aria2c` 来明确表示“命令行客户端”。
+
+------
+
+### 2. 用途
+
+- **aria2c**：直接在终端执行命令下载文件、批量下载、RPC 控制等，是默认使用方式。
+- **aria2**：有时指整个工具包或包含 GUI / RPC 功能的服务端组件，但在命令行中一般会自动映射到 `aria2c`。
 
 
 

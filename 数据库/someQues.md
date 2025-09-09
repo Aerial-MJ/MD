@@ -47,20 +47,21 @@
   5. **关系之间的联系**
      - 通过 **外键（Foreign Key）** 来实现。
 
-   简单说：关系模型是“表格化的数据库结构”，它属于 **逻辑实现层面**，是数据库实现的基础
+   简单说：关系模型是“表格化的数据库结构”，它属于 **逻辑实现层面**，是数据库实现的基础。
 
-  ### 3. 非关系模型（Non-Relational Model）
+
+### 非关系模型（Non-Relational Model）
 
   **非关系模型**（Non-Relational Model），其实就是 **不基于关系模型（表格）的数据库模型**。它是相对于关系型数据库（RDBMS）的概念，常用在大数据和高并发场景。下面我给你系统解释：
 
-  ------
+------
 
   #### 1. **定义**
 
   - **非关系模型**是一类 **不使用二维表（关系表）存储数据** 的数据库模型。
   - 数据存储方式可以更灵活（文档、键值、图、列族等），不需要严格的模式（Schema），或者模式可以动态变化。
 
-  ------
+------
 
   #### 2. **非关系数据库分类**
 
@@ -73,7 +74,7 @@
   | **列族型 (Column-Family)** | 按列而不是按行存储，适合大数据分析                           | HBase, Cassandra      |
   | **图型 (Graph)**           | 专门存储节点和边，适合处理复杂关系                           | Neo4j, JanusGraph     |
 
-  ------
+------
 
   #### 3. **特点**
 
@@ -86,7 +87,7 @@
   4. **弱化事务**
      - 不像关系型数据库有严格 ACID，通常强调 BASE（基本可用、软状态、最终一致性）。
 
-  ------
+------
 
   #### 4. **与关系模型对比**
 
@@ -98,12 +99,271 @@
   | 扩展性   | 垂直扩展（加大服务器） | 水平扩展（分片）                 |
   | 典型用途 | 传统业务系统           | 大数据、实时分析、缓存、社交网络 |
 
-  ------
+------
 
   简单理解：
 
   - **关系模型** = 严格的表格，结构固定，事务强。
   - **非关系模型** = 灵活的存储形式，适合海量和多样化数据。
+
+## **数据库文件** 和 **SQL 文件** 
+
+**数据库文件** 和 **SQL 文件** 的区别，以及它们对应的文件后缀，我给你梳理一下：
+
+------
+
+### 1. **.sql 文件**
+
+- **性质**：文本文件，不直接存储数据，而是 **SQL 语句脚本**。
+
+- **内容**：可以包含创建表、插入数据、更新数据、查询等 SQL 语句。
+
+- **用途**：
+
+  1. 初始化数据库结构（`CREATE TABLE`、`ALTER TABLE` 等）
+  2. 批量导入数据（`INSERT INTO`）
+  3. 备份数据库（导出的 SQL 脚本）
+
+- **特点**：
+
+  - 可用文本编辑器打开和修改
+  - 不依赖特定数据库管理系统（虽然有些 SQL 方言不同）
+
+- **示例**：
+
+  ```
+  CREATE TABLE students (
+      id INT PRIMARY KEY,
+      name VARCHAR(50),
+      age INT
+  );
+  
+  INSERT INTO students VALUES (1, 'Alice', 20);
+  ```
+
+- **总结**：`.sql` 文件 **保存的是 SQL 命令，不是数据本身**。
+
+------
+
+### 2. **.db 文件 / 数据库文件**
+
+- **性质**：二进制文件，直接存储数据和数据库结构。
+
+- **内容**：表结构、索引、数据记录、视图、触发器等。
+
+- **用途**：数据库运行时使用，直接存储和管理数据。
+
+- **常见后缀**：
+
+  | 数据库类型 | 文件后缀                   | 说明                   |
+  | ---------- | -------------------------- | ---------------------- |
+  | SQLite     | .db, .sqlite, .sqlite3     | 单文件数据库，轻量级   |
+  | MySQL      | .ibd, .frm, .myd, .myi     | 各类表文件和数据文件   |
+  | PostgreSQL | 无固定后缀，存储在数据目录 | 文件内部格式自管理     |
+  | Oracle     | .dbf                       | 表空间文件（数据文件） |
+
+- **特点**：
+
+  - 通常 **不能用文本编辑器直接修改**（是二进制）
+  - 数据库管理系统直接读取和写入
+
+------
+
+### 3. **SQL 文件 vs 数据文件区别**
+
+| 特性     | .sql 文件                                                    | .db / 数据文件             |
+| -------- | ------------------------------------------------------------ | -------------------------- |
+| 类型     | 文本                                                         | 二进制                     |
+| 内容     | SQL 语句（创建表、插入数据）                                 | 表结构 + 数据 + 索引等     |
+| 可读性   | 可以直接用文本编辑器查看                                     | 不能直接读，需要数据库软件 |
+| 功能     | 初始化/导入/备份                                             | 存储和操作数据             |
+| 使用方式 | `mysql -u user -p < data.sql` 或 `sqlite3 test.db < data.sql` | 数据库系统直接使用         |
+
+------
+
+### 4. **总结一句话**
+
+- **.sql 文件** = “数据库操作的指令集”，文本形式。
+- **.db 文件 / 数据文件** = “实际存储的数据”，二进制形式。
+
+## Sql语言
+
+### 1. **数据库操作的指令集**
+
+这些指令都是 **SQL（Structured Query Language，结构化查询语言）语句**，可以分为几类：
+
+| 类别                                                  | 作用                 | 示例语句                                                     |
+| ----------------------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| **DDL（Data Definition Language，数据定义语言）**     | 定义数据库结构       | `CREATE TABLE students (...);``ALTER TABLE students ADD COLUMN grade INT;``DROP TABLE students;` |
+| **DML（Data Manipulation Language，数据操作语言）**   | 对表里的数据进行操作 | `INSERT INTO students VALUES (1, 'Alice', 20);``UPDATE students SET age=21 WHERE id=1;``DELETE FROM students WHERE id=1;` |
+| **DQL（Data Query Language，数据查询语言）**          | 查询数据             | `SELECT * FROM students WHERE age>18;`                       |
+| **DCL（Data Control Language，数据控制语言）**        | 权限管理             | `GRANT SELECT ON students TO user1;``REVOKE INSERT ON students FROM user1;` |
+| **TCL（Transaction Control Language，事务控制语言）** | 控制事务             | `BEGIN TRANSACTION;``COMMIT;``ROLLBACK;`                     |
+
+> 注意：不同数据库系统（MySQL、PostgreSQL、SQLite）在 SQL 语法上有一些差别，但大部分基本语法通用。
+
+------
+
+### 2. **SQL 文件的用途**
+
+- **SQL 文件**可以包含上面所有类别的 SQL 语句。
+- 作用：
+  1. 初始化数据库（建表、创建索引）
+  2. 导入数据（批量 `INSERT`）
+  3. 数据库备份与迁移（导出的 `.sql` 文件）
+
+**示例 SQL 文件 (`init.sql`)：**
+
+```sql
+CREATE TABLE students (
+    id INT PRIMARY KEY,
+    name VARCHAR(50),
+    age INT
+);
+
+INSERT INTO students VALUES (1, 'Alice', 20);
+INSERT INTO students VALUES (2, 'Bob', 21);
+
+GRANT SELECT ON students TO user1;
+```
+
+> 这个文件可以直接用数据库执行，创建表、插入数据、授予权限。
+
+------
+
+### 3. **命令行直接操作 vs SQL 文件**
+
+1. **命令行直接操作**
+
+   - 可以在数据库交互式命令行中直接输入 SQL：
+
+   ```bash
+   mysql -u root -p
+   > CREATE DATABASE testdb;
+   > USE testdb;
+   > CREATE TABLE students(id INT, name VARCHAR(50));
+   ```
+
+   - 优点：即时执行，调试方便
+   - 缺点：重复操作不方便、批量导入麻烦
+
+2. **使用 SQL 文件**
+
+   - 可以把一系列 SQL 指令写入 `.sql` 文件，然后一次性执行：
+
+   ```bash
+   mysql -u root -p < init.sql
+   sqlite3 test.db < init.sql
+   ```
+
+   - 优点：可复用、可版本控制、便于备份和迁移
+
+> 🔹 实际使用中，生产环境更倾向于写 SQL 文件，然后用命令行导入，方便管理。
+
+------
+
+### 4. **总结**
+
+- **SQL 文件** = 指令集的文本化形式，能包含 DDL、DML、DQL、DCL、TCL 的 SQL 语句。
+- **命令行操作** = 直接输入 SQL 语句，适合临时操作和调试。
+- **推荐实践**：
+  - 开发/生产用 SQL 文件管理数据库操作
+  - 临时测试用命令行操作
+
+## 导入数据并创建数据库
+
+在 **SQLite3** 中，完全可以使用 **SQL 文件** 来导入数据并创建数据库（.db 文件）。
+
+------
+
+### 1. **准备 SQL 文件**
+
+假设你有一个 SQL 文件 `init.sql`，内容如下：
+
+```sql
+-- 创建表
+CREATE TABLE students (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    age INTEGER
+);
+
+-- 插入数据
+INSERT INTO students (id, name, age) VALUES (1, 'Alice', 20);
+INSERT INTO students (id, name, age) VALUES (2, 'Bob', 21);
+
+-- 查询测试
+SELECT * FROM students;
+```
+
+> 这个文件可以包含任何 SQLite 支持的 SQL 语句：DDL、DML、DQL。
+
+------
+
+### 2. **通过命令行导入 SQL 文件创建 .db**
+
+在命令行中执行：
+
+```bash
+sqlite3 mydatabase.db < init.sql
+```
+
+解释：
+
+- `sqlite3`：调用 SQLite3 工具
+- `mydatabase.db`：你想生成的数据库文件
+- `< init.sql`：将 SQL 文件内容作为输入执行
+
+执行完成后：
+
+- 会生成 `mydatabase.db` 文件
+- 表 `students` 已经创建，数据已插入
+
+------
+
+### 3. **在 SQLite3 命令行里导入**
+
+你也可以先进入 SQLite3 交互式命令行，然后导入 SQL 文件：
+
+```bash
+sqlite3 mydatabase.db
+sqlite> .read init.sql
+sqlite> .tables       -- 查看表是否创建成功
+sqlite> SELECT * FROM students;
+```
+
+解释：
+
+- `.read init.sql` → 执行 SQL 文件
+- `.tables` → 显示数据库里已有的表
+- `SELECT * FROM students;` → 检查数据是否导入成功
+
+------
+
+### 4. **小技巧**
+
+1. **查看表结构**
+
+```sql
+PRAGMA table_info(students);
+```
+
+1. **导出数据库为 SQL 文件**（备份）
+
+```bash
+sqlite3 mydatabase.db .dump > backup.sql
+```
+
+1. **批量导入数据**
+    如果 SQL 文件很大（几万条 INSERT 语句），可以用上面 `.read` 或 `<` 方法一次导入。
+
+------
+
+✅ 总结：
+
+- `.sql 文件` = SQL 指令集
+- `sqlite3 mydatabase.db < file.sql` = 命令行导入生成数据库
+- 或者进入命令行，`.read file.sql` 也可以
 
 ## 问题：
 
@@ -194,3 +454,4 @@
 - **笛卡尔积 = 所有组合**，**连接 = 笛卡尔积 + 条件**
 - **一对多 = “一” 端唯一，“多” 端可重复**
 - **模式 = 数据库框架，视图 = 派生虚拟表**
+

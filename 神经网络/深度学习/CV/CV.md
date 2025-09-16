@@ -80,7 +80,7 @@
 - **定义**：预测框和真实框的重叠程度。
 - **公式**：
 
-IoU=Area(预测框∩真实框)Area(预测框∪真实框)IoU = \frac{Area(预测框 ∩ 真实框)}{Area(预测框 ∪ 真实框)}
+$IoU = \frac{Area(预测框 ∩ 真实框)}{Area(预测框 ∪ 真实框)}$
 
 - **应用**：用来判断预测框是否算“正确检测”。通常设定阈值（如 0.5），当 IoU ≥ 0.5 时，认为预测框与真实框匹配。
 
@@ -109,7 +109,7 @@ IoU=Area(预测框∩真实框)Area(预测框∪真实框)IoU = \frac{Area(预�
 - **定义**：在所有预测为正例（检测出的目标）中，有多少是真正的目标。
 - **公式**：
 
-$ Precision=TPTP+FPPrecision = \frac{TP}{TP + FP} $
+$ Precision = \frac{TP}{TP + FP} $
 
 - **含义**：你预测的目标里，有多少是对的。
 
@@ -120,7 +120,7 @@ $ Precision=TPTP+FPPrecision = \frac{TP}{TP + FP} $
 - **定义**：在所有真实目标中，有多少被成功检测出来。
 - **公式**：
 
-$ Recall=TPTP+FNRecall = \frac{TP}{TP + FN} $
+$ Recall = \frac{TP}{TP + FN} $
 
 - **含义**：真实目标有多少被你找到。
 
@@ -137,9 +137,9 @@ $ Recall=TPTP+FNRecall = \frac{TP}{TP + FN} $
   3. 对所有类别求平均（mAP, mean Average Precision）。
 - **公式（直观表示）**：
 
-$ mAP=1N∑i=1NAPimAP = \frac{1}{N}\sum_{i=1}^N AP_i$
+$mAP = \frac{1}{N}\sum_{i=1}^N AP_i$
 
-其中 NN 是类别数。
+其中 N 是类别数。
 
 - **应用**：目标检测竞赛（如 COCO、VOC）主要用 mAP 作为最终指标。
 
@@ -180,7 +180,7 @@ $ mAP=1N∑i=1NAPimAP = \frac{1}{N}\sum_{i=1}^N AP_i$
 - **Recall** → 漏没漏
 - **mAP** → 综合成绩
 
-## (AUC-ROC)（AUC-PR）
+## AUC-ROC  AUC-PR
 
 **ROC 曲线下面积 (AUC-ROC)** 或 **Precision-Recall 曲线下面积 (AUC-PR)**。我帮你梳理一下两者的区别和含义。
 

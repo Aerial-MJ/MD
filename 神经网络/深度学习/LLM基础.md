@@ -108,10 +108,6 @@ Semantic Role Labeling (SRL)
 Semantic Parsing / Understanding
 ```
 
-# ViT
-
-
-
 
 
 

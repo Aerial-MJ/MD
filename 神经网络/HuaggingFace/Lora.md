@@ -236,6 +236,10 @@ model = get_peft_model(model, config)
 
 ![image-20251011185354833](../../Image/image-20251011185354833.png)
 
+**decoder 部分**
+
+![image-20251011205705776](../../Image/image-20251011205705776.png)
+
 ### 权重
 
 **权重**（weights）是指模型中所有可训练参数。它们存在于整个模型的每一层：
@@ -255,6 +259,8 @@ model = get_peft_model(model, config)
 ⚙️ 当我们说 “模型权重大小是 8B（80亿）”，指的就是**全模型中所有层的参数数量总和**。
 
 ### Lora 权重参数的位置
+
+
 
 ## 三、Logits 是什么？
 

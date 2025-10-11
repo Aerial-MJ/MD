@@ -2,13 +2,13 @@
 
 **cache**
 
-**mask**z
+**mask**
 
 非常棒的问题，这一段 `LlamaForCausalLM` 是 **Hugging Face 的 Llama 解码器核心类**，
- 掌管了 **token-by-token 生成** 的全部流程（尤其是 `forward()` + `prepare_inputs_for_generation()` 的交互）。
+掌管了 **token-by-token 生成** 的全部流程（尤其是 `forward()` + `prepare_inputs_for_generation()` 的交互）。
 
 我们来**完整剖析生成阶段（generate 调用时）各个函数的运算顺序**，帮你理清整个数据流。
- 我会用一个简图 + 详细顺序来解释每一步发生了什么。
+我会用一个简图 + 详细顺序来解释每一步发生了什么。
 
 ------
 

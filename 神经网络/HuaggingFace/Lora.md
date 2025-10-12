@@ -230,7 +230,7 @@ model = get_peft_model(model, config)
 输入文本 → [嵌入层] → [Transformer 层堆叠 × N] → [输出层] → logits
 ```
 
-## 二、权重（Weights）在模型中的位置、
+## 二、权重（Weights）在模型中的位置
 
 ### Transformer模型
 
@@ -260,7 +260,61 @@ model = get_peft_model(model, config)
 
 ### Lora 权重参数的位置
 
+#### 一、LoRA 权重位置和作用
 
+1. **LoRA 并没有改动原模型权重**
+   - 原模型权重 `W` 完全冻结，不参与训练
+   - 保留原有的 Transformer 层（Embedding、Attention、FeedForward 等）
+2. **LoRA 新增了一组小矩阵**（通常记作 `A` 和 `B`）
+   - 它们插入在 **注意力层的权重矩阵中**
+   - 对于自注意力层的 Query/Value/Key/Output 线性变换，都可以加 LoRA
+
+**公式回顾：**
+
+$W^′=W+BA$
+
+- `W`：原始权重，冻结
+- `A, B`：LoRA 矩阵，可训练
+- `BA`：低秩适配，作为增量叠加在原权重上
+
+> ⚡ 核心理解：LoRA 权重 **是独立于原模型的增量权重**，存储在模型之外（通常保存为 `.pt` / `.safetensors` LoRA adapter 文件），加载时通过代码和原模型叠加，不破坏原模型。
+
+#### 二、插入位置
+
+以 Transformer 的注意力层为例（PyTorch 表示）：
+
+```python
+# 原始权重
+q_proj.weight   # Query 矩阵
+k_proj.weight   # Key 矩阵
+v_proj.weight   # Value 矩阵
+
+# LoRA 插入
+# 只对 q_proj / v_proj 线性变换做低秩适配
+q_proj_new = q_proj.weight + B_q @ A_q
+v_proj_new = v_proj.weight + B_v @ A_v
+```
+
+- LoRA 的 `A` 和 `B` 是 **小矩阵**（比如 rank=8 或 16），
+- 在前向传播时临时加到原权重上生成 `q_proj_new`
+- **原模型的 `q_proj.weight` 并未被修改**
+
+#### 三、总结
+
+| 特性               | 说明                                             |
+| ------------------ | ------------------------------------------------ |
+| 是否修改原模型权重 | ❌ 不修改                                         |
+| 是否独立存储       | ✅ 通常单独保存成 LoRA adapter 文件               |
+| 插入位置           | Attention 层的 Q/K/V 或 Output Projection 线性层 |
+| 前向计算方式       | W' = W + BA（原权重 + LoRA 增量）                |
+| 微调参数数量       | 很少（几百万 vs 模型几十亿参数）                 |
+| 优势               | 节省显存，便于多任务适配                         |
+
+------
+
+💬 总结一句话：
+
+> **LoRA 的权重是新增加的、独立于原模型的增量矩阵，它不会修改原始权重，而是通过叠加的方式在前向传播中生效。**
 
 ## 三、Logits 是什么？
 

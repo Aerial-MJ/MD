@@ -41,7 +41,7 @@ class BasicExpert(nn.Module):
 
 基础版本的 MOE 可以看这个图，非常的简单。
 
-![llms-zero-to-hero-basic-moe-model](/llms-zero-to-hero/basic-moe-model.png)
+![image-20251013163659181](../../../Image/image-20251013163659181.png)
 
 ```python
 
@@ -91,7 +91,7 @@ test_basic_moe()
 ## 2. 版本2：SparseMoE （大模型训练使用）
 这个一般我们用 switch transformers 这篇文章的图作为演示，详情看：
 
-![llms-zero-to-hero-switch-transformers-moe-model](/llms-zero-to-hero/switch-transformers-moe-model.png)
+![image-20251013163713295](../../../Image/image-20251013163713295.png)
 
 
 和 Basic 区别是，MOE 选择 topK 个专家，然后对这 topK 个专家的输出进行加权求和，并且把输入样本变成了大模型中真实的输入 Shape，(batch, seq_len, hidden_dim)
@@ -235,7 +235,7 @@ test_token_level_moe()
 
 具体结构图为：
 
-![llms-zero-to-hero-deepseek-v3-model-architecture](/llms-zero-to-hero/deepseek-v3-model-architecture.png)
+![image-20251013163736903](../../../Image/image-20251013163736903.png)
 
 ```python
 class ShareExpertMOE(nn.Module):

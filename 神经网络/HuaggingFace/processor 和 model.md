@@ -1,6 +1,6 @@
 # Processor和Model
 
-其当你在用 **🤗 Transformers**（Hugging Face）处理多模态模型（比如 LLaVA、Qwen-VL、CLIP、Whisper 等）时，理解 `processor` 和 `model` 的区别能帮你彻底搞清楚模型输入输出流程。
+非常好，这个问题非常关键，尤其当你在用 **🤗 Transformers**（Hugging Face）处理多模态模型（比如 LLaVA、Qwen-VL、CLIP、Whisper 等）时，理解 `processor` 和 `model` 的区别能帮你彻底搞清楚模型输入输出流程。我们来系统地讲清楚👇
 
 ------
 

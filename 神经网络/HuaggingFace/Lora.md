@@ -214,7 +214,7 @@ model = get_peft_model(model, config)
 > **LoRA = 冻结 FP16 模型 + 训练低秩矩阵**
 > **QLoRA = 量化 FP16 → 4-bit + 冻结 + 训练低秩矩阵**
 
-# 模型的结构
+# Transformer模型的结构
 
 **权重、logits、输入输出位置**）是理解 Transformer / LLM 工作原理的核心之一。让你能**从输入→中间→输出**完整理解整个链条。
 
@@ -363,7 +363,7 @@ P("you") = exp(5.4) / Σ exp(logits)
 隐藏层输出 → Linear(权重矩阵 W) → logits → softmax → 预测下一个token
 ```
 
-也就是：
+也就是：**[lm_head.weight]**
 
 ```
 [隐向量] × [lm_head.weight] = [logits]

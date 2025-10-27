@@ -230,7 +230,7 @@ datasets["test"]       # test.json
 
 ```
 train_ds = load_dataset("json", data_files=data_files, split="train")
-val_ds = load_dataset("json", data_files=data_files, split="validation"
+val_ds = load_dataset("json", data_files=data_files, split="validation")
 ```
 
 #### 正确示例

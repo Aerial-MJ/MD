@@ -488,11 +488,11 @@ def linear_f(x, W, b):
 - **模块化层（Linear/Dense）** → “方便堆叠，自动管理权重”
 - **函数式（F.linear / 自定义函数）** → “灵活自定义，但要自己管权重”
 
-## 常用的库
+### 常用的库
 
 明白了，你想问的是在使用 **TRL（Transformers Reinforcement Learning）** 做大模型微调或强化学习时，除了 TRL，还有哪些库是必须或常用的。我们可以梳理一下按功能分类：
 
-### 核心库
+#### 核心库
 
 | 库                      | 作用                                                         |
 | ----------------------- | ------------------------------------------------------------ |
@@ -502,7 +502,7 @@ def linear_f(x, W, b):
 | `accelerate`            | 多 GPU / 分布式训练管理，自动设备映射，支持 DeepSpeed、FSDP 等。 |
 | `trl`                   | 强化学习微调（RLHF/RL from human feedback）的核心库。        |
 
-### 可选但常用库
+#### 可选但常用库
 
 | 库                      | 用途                                                    |
 | ----------------------- | ------------------------------------------------------- |
@@ -512,7 +512,7 @@ def linear_f(x, W, b):
 | `evaluate`              | 方便做评测，如 BLEU、ROUGE、METEOR 等指标。             |
 | `sentence-transformers` | 文本嵌入，常用于 reward 模型或相似度计算。              |
 
-### 数据 / 爬取 / 环境工具
+#### 数据 / 爬取 / 环境工具
 
 | 库                             | 作用                              |
 | ------------------------------ | --------------------------------- |
@@ -520,7 +520,7 @@ def linear_f(x, W, b):
 | `datasets` + `huggingface_hub` | 下载、上传数据集或模型 checkpoint |
 | `wandb` / `tensorboard`        | 训练日志可视化和监控              |
 
-### 实战推荐组合（针对 RLHF / TRL）
+#### 实战推荐组合（针对 RLHF / TRL）
 
 如果你想做 RLHF 或本地微调，大部分项目组合是：
 
@@ -535,7 +535,7 @@ torch + transformers + datasets + accelerate + trl + peft + deepspeed + evaluate
 - `datasets` 负责数据加载
 - `safetensors` 提高权重保存效率
 
-### Detectron2
+#### Detectron2
 
 **功能**
 
@@ -557,15 +557,15 @@ torch + transformers + datasets + accelerate + trl + peft + deepspeed + evaluate
 - OCR 前处理（检测文本区域）
 - 自主驾驶、安防监控等目标检测任务
 
-### FlashAttention
+#### FlashAttention
 
-#### 功能
+##### 功能
 
 - **加速 Transformer 注意力机制**
 - 使用 **块状 GPU 内存访问和高效内核**，减少显存占用并提升速度
 - 主要面向大模型（GPT、LLaMA、Qwen 等）的训练和推理
 
-#### 核心特点
+##### 核心特点
 
 | 特点     | 说明                                                         |
 | -------- | ------------------------------------------------------------ |
@@ -573,7 +573,7 @@ torch + transformers + datasets + accelerate + trl + peft + deepspeed + evaluate
 | 精度     | 支持 FP16、BF16 和混合精度训练                               |
 | 兼容性   | 可和 Hugging Face Transformers 结合，用在 `xformers` 或自定义 attention 里 |
 
-#### 使用场景
+##### 使用场景
 
 - 大语言模型训练（GPT、LLaMA、Qwen）
 - 注意力矩阵很大（比如长序列、图片 patch Transformer）

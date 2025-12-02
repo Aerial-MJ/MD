@@ -1,5 +1,7 @@
 # 安装CUDA
 
+conda install pytorch=2.5.1 torchvision=0.20.1 torchaudio=2.5.1 cudatoolkit=12.1 -c pytorch
+
  ## CUDA安装
 
  windows10 版本安装 [CUDA](https://so.csdn.net/so/search?q=CUDA&spm=1001.2101.3001.7020) ，首先需要下载两个安装包

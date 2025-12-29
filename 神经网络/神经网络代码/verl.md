@@ -1,3 +1,5 @@
+# Verl
+
 ## 一、什么是 **verl**
 
 **verl（Volcano Engine Reinforcement Learning）** 是字节跳动 Seed 团队推出的一个 **强化学习训练框架**，主要用于大型语言模型（LLMs）的强化学习（尤其是 RLHF，即 “人类反馈强化学习”）和 agent 训练任务。它的目标是：

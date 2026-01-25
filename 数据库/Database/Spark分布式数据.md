@@ -1,4 +1,4 @@
-# 分布式数据库
+## 分布式数据库
 
 ### 1. Hadoop 是什么？
 
@@ -54,7 +54,7 @@
 
 ------
 
-## 它们之间的关系（一句话版）
+### 它们之间的关系（一句话版）
 
 📌 **Hadoop = HDFS（存数据） + 计算引擎（最早是 MapReduce） + 管理 YARN**。 ([IBM](https://www.ibm.com/think/insights/hadoop-vs-spark?utm_source=chatgpt.com))
 📌 **Hive 是 SQL 查询层**，让你用 SQL 去分析 Hadoop 上的数据（最早内部转 MapReduce 执行）。 ([T-Systems 文档](https://docs.otc.t-systems.com/mapreduce-service/umn/faq/mrs_overview/what_is_the_relationship_between_hive_and_other_components.html?utm_source=chatgpt.com))
@@ -62,7 +62,7 @@
 
 ------
 
-## 一张最简单的“概念图”
+### 一张最简单的“概念图”
 
 ```
   数据存储层：HDFS （整个集群的数据都放这里）
@@ -77,7 +77,7 @@
 
 ------
 
-## 核心记忆点（最重要）
+### 核心记忆点（最重要）
 
 ✔ **HDFS：存数据**
 ✔ **MapReduce：旧的计算方式**
@@ -87,3 +87,4 @@
 ------
 
 “**HDFS 是仓库、MapReduce/Spark 是工人、Hive 是会 SQL 的指令官**”。
+

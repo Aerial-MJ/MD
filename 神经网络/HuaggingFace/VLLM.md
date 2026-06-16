@@ -54,9 +54,22 @@ sampling_params = SamplingParams(
 - `early_stopping`：如果您不希望生成过长的结果，可以设置此参数为True。
 - `stop 和 stop_token_ids`：您可以使用这些参数来指定生成结果的结束条件。
 
-```python
 
+```bash
+pip install \
+    compressed-tensors==0.8.0 \
+    gguf==0.10.0 \
+    "lm-format-enforcer>=0.10.9,<0.11" \
+    "mistral-common[opencv]>=1.5.0" \
+    "nvidia-ml-py>=12.560.30" \
+    "outlines>=0.0.43,<0.1" \
+    partial-json-parser \
+    "prometheus-client>=0.18.0" \
+    "prometheus-fastapi-instrumentator>=7.0.0" \
+    py-cpuinfo \
+    pyzmq \
+    "ray>=2.9" \
+    xformers==0.0.28.post3 \
+    "setuptools>=74.1.1"
+    
 ```
-
-## Paged Attention
-

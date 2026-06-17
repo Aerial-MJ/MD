@@ -384,3 +384,114 @@ pyproject.toml 的概念          setup.py 的概念
 ## 一句话总结
 
 > **`dynamic = ["scripts"]` 是 `pyproject.toml` 的标准叫法，`entry_points["console_scripts"]` 是 `setup.py` 的底层叫法，setuptools 负责把两者对应起来，所以你看到名字不一样但能正常工作。**
+
+---
+---
+
+## 补充：包的识别、安装方式与 sys.path
+
+---
+
+### 一、什么是包 — `__init__.py`
+
+Python 判断一个目录是不是包，就看有没有 `__init__.py` 文件：
+
+```
+llamafactory/
+    ├── __init__.py     ← 有这个文件，llamafactory 就是一个包
+    ├── cli.py          ← llamafactory.cli 模块
+    └── train/
+        ├── __init__.py
+        └── ...
+```
+
+没有 `__init__.py` 的目录只是普通文件夹，`python -m mydir.cli` 会报错找不到包。
+
+---
+
+### 二、`pip install` vs `pip install -e`
+
+| 方式 | 机制 |
+|------|------|
+| `pip install .` | 把代码**复制**到 site-packages，是真实文件副本 |
+| `pip install -e .` | 在 site-packages 放一个**指针**指向源码目录，类似软链接 |
+
+`-e`（`--editable`）模式下修改源码立刻生效，不需要重新安装，开发阶段常用。
+
+---
+
+### 三、直接执行脚本 vs `-m` 执行 — 相对 import 的问题
+
+```bash
+# 直接执行脚本
+python /path/to/llamafactory/cli.py
+
+# -m 执行
+python -m llamafactory.cli
+```
+
+| 执行方式 | `__package__` 的值 | 相对 import |
+|---------|-----------------|------------|
+| `python cli.py` | `None` | ❌ 报错 |
+| `python -m llamafactory.cli` | `"llamafactory"` | ✅ 正常 |
+
+**为什么相对 import 会断？**
+
+```python
+from .utils import yyy
+# 等价于：from {__package__}.utils import yyy
+
+# __package__ = "llamafactory" → from llamafactory.utils import yyy  ✅
+# __package__ = None           → 报错 ImportError                    ❌
+```
+
+- **绝对 import** 靠 `sys.path`（全局查找），和怎么执行无关
+- **相对 import** 靠 `__package__`，直接执行脚本时为 `None`，所以报错
+
+---
+
+### 四、工作目录保持不变
+
+`-m` 执行**不会改变工作目录**，代码里用相对路径读文件，还是基于你 `cd` 进去的那个目录：
+
+```bash
+cd /home/user/project
+python -m llamafactory.cli train config.yaml
+# open("config.yaml") 找的是 /home/user/project/config.yaml ✅
+
+cd /tmp
+python -m llamafactory.cli train config.yaml
+# open("config.yaml") 找的是 /tmp/config.yaml ❌（找不到）
+```
+
+这就是为什么一般要先 `cd` 到项目目录再执行命令。
+
+---
+
+### 五、sys.path 包含哪些路径
+
+```bash
+# 查看当前 sys.path
+python -c "import sys; print('\n'.join(sys.path))"
+```
+
+输出大概包含这几类：
+
+| 来源 | 说明 |
+|------|------|
+| `""` （空字符串） | **当前工作目录**，第一个查找 |
+| 标准库路径 | Python 内置模块，如 `os`、`sys` |
+| `site-packages` | pip 安装的第三方包 |
+| `PYTHONPATH` 环境变量 | 手动添加的额外路径 |
+
+**查找顺序：当前目录 → PYTHONPATH → 标准库 → site-packages**，找到就停。
+
+> ⚠️ 注意：如果当前目录有个 `os.py` 文件，会覆盖标准库的 `os`，这是常见的坑。
+
+**手动添加路径：**
+
+```bash
+export PYTHONPATH=/home/user/mypackages:$PYTHONPATH
+```
+
+加完之后这个路径就插入到 `sys.path` 里，Python 就能找到里面的包了。

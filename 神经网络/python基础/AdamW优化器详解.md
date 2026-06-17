@@ -1,0 +1,338 @@
+# AdamW 优化器详解
+
+## 1. 背景与动机
+
+### 1.1 从 SGD 到 Adam
+
+| 优化器 | 核心思想 | 缺点 |
+|--------|----------|------|
+| SGD | 沿梯度方向下降 | 学习率敏感，收敛慢 |
+| SGD + Momentum | 引入动量加速收敛 | 仍需手动调学习率 |
+| AdaGrad | 自适应学习率（累积梯度平方） | 学习率单调递减，后期学习停滞 |
+| RMSProp | 改进 AdaGrad，使用指数移动平均 | 无偏差修正 |
+| **Adam** | 结合 Momentum + RMSProp | 权重衰减与梯度耦合 |
+| **AdamW** | Adam + 解耦权重衰减 | 当前主流选择 ✅ |
+
+### 1.2 为什么需要 AdamW？
+
+Adam 中的 L2 正则化（权重衰减）存在问题：L2 正则化加入梯度后，会被二阶矩 `v` 的自适应缩放"稀释"，导致权重衰减效果不均匀。
+
+AdamW 的核心贡献（Loshchilov & Hutter, 2019）：**将权重衰减从梯度更新中解耦出来**，直接作用于参数。
+
+---
+
+## 2. 核心变量：m 和 v 完全针对梯度
+
+### 2.1 一阶矩 m（First Moment Estimate）
+
+**本质**：梯度的指数加权移动平均，相当于带"惯性"的梯度方向。
+
+$$m_t = \beta_1 m_{t-1} + (1 - \beta_1) g_t$$
+
+- $g_t$：当前步的梯度
+- $\beta_1$：一阶矩衰减系数（默认 0.9）
+- $m_0 = 0$（初始化为零）
+
+**直觉理解**：
+- $m_t$ 是过去所有梯度的加权平均，越近的梯度权重越大
+- 类似物理中的"动量"，使优化轨迹更平滑，减少震荡
+- 展开后：$m_t = (1-\beta_1)\sum_{i=1}^{t} \beta_1^{t-i} g_i$
+
+### 2.2 二阶矩 v（Second Moment Estimate）
+
+**本质**：梯度平方的指数加权移动平均，相当于梯度幅度的"估计方差"。
+
+$$v_t = \beta_2 v_{t-1} + (1 - \beta_2) g_t^2$$
+
+- $\beta_2$：二阶矩衰减系数（默认 0.999）
+- $v_0 = 0$（初始化为零）
+
+**直觉理解**：
+- $v_t$ 反映了该参数梯度的历史波动程度
+- 梯度波动大（不稳定）的参数 → $v_t$ 大 → 实际学习率被压缩（保守更新）
+- 梯度波动小（稳定）的参数 → $v_t$ 小 → 实际学习率相对较大（积极更新）
+
+> **关键结论**：`m` 和 `v` 都只与梯度 $g_t$ 有关，与参数 $\theta$ 本身无关。
+
+---
+
+## 3. 偏差修正（Bias Correction）
+
+由于 $m_0 = v_0 = 0$，训练初期估计会偏向零，需要修正：
+
+$$\hat{m}_t = \frac{m_t}{1 - \beta_1^t}$$
+
+$$\hat{v}_t = \frac{v_t}{1 - \beta_2^t}$$
+
+**为什么需要修正？**
+
+以 $m_1$ 为例：
+$$m_1 = \beta_1 \cdot 0 + (1-\beta_1) g_1 = (1-\beta_1) g_1 = 0.1 \cdot g_1$$
+
+但我们期望 $m_1 \approx g_1$，所以除以 $(1-\beta_1^1) = 0.1$，得 $\hat{m}_1 = g_1$。
+
+随着 $t$ 增大，$\beta_1^t \to 0$，$\hat{m}_t \to m_t$，偏差修正逐渐失效（不需要了）。
+
+---
+
+## 4. AdamW 完整更新流程
+
+### 4.1 算法伪代码
+
+```python
+# 初始化
+m = 0  # 一阶矩（梯度均值）
+v = 0  # 二阶矩（梯度平方均值）
+t = 0  # 时间步
+
+# 每个训练步骤
+for each batch:
+    t += 1
+    
+    # Step 1: 计算当前梯度
+    g = gradient(loss, params)
+    
+    # Step 2: 更新一阶矩（针对梯度）
+    m = beta1 * m + (1 - beta1) * g
+    
+    # Step 3: 更新二阶矩（针对梯度平方）
+    v = beta2 * v + (1 - beta2) * g ** 2
+    
+    # Step 4: 偏差修正
+    m_hat = m / (1 - beta1 ** t)
+    v_hat = v / (1 - beta2 ** t)
+    
+    # Step 5: AdamW 参数更新（两部分解耦）
+    params = params - lr * m_hat / (sqrt(v_hat) + eps)  # 梯度驱动更新
+    params = params - lr * weight_decay * params         # 权重衰减（独立）
+```
+
+### 4.2 数学表达
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} - \alpha \lambda \theta_{t-1}$$
+
+其中：
+- $\alpha$：学习率（默认 1e-3）
+- $\epsilon$：数值稳定项（默认 1e-8），防止除零
+- $\lambda$：权重衰减系数（默认 0.01）
+
+---
+
+## 5. Adam vs AdamW：权重衰减的本质区别
+
+### 5.1 Adam 中的 L2 正则化（有缺陷）
+
+```python
+# Adam + L2 正则化（错误做法）
+g = gradient(loss, params) + weight_decay * params  # 权重衰减混入梯度！
+m = beta1 * m + (1 - beta1) * g
+v = beta2 * v + (1 - beta2) * g ** 2
+params = params - lr * m_hat / (sqrt(v_hat) + eps)
+```
+
+**问题**：权重衰减项 $\lambda \theta$ 被加进梯度后，同样受到 $\sqrt{\hat{v}_t}$ 的自适应缩放。
+- 对于梯度较大的参数：$\hat{v}_t$ 大，权重衰减被大幅缩小 → **正则化不足**
+- 对于梯度较小的参数：$\hat{v}_t$ 小，权重衰减相对放大 → **正则化过度**
+
+### 5.2 AdamW 中的解耦权重衰减（正确做法）
+
+```python
+# AdamW（正确做法）
+g = gradient(loss, params)          # 梯度不包含权重衰减
+m = beta1 * m + (1 - beta1) * g
+v = beta2 * v + (1 - beta2) * g ** 2
+params = params - lr * m_hat / (sqrt(v_hat) + eps)  # 梯度更新
+params = params - lr * weight_decay * params         # 权重衰减独立作用！
+```
+
+**效果**：每个参数都以统一的比例 $\lambda$ 进行衰减，不受梯度自适应缩放的影响。
+
+### 5.3 对比总结
+
+| 特性 | Adam + L2 | AdamW |
+|------|-----------|-------|
+| 权重衰减方式 | 混入梯度，被 $\hat{v}$ 缩放 | 直接作用参数，独立更新 |
+| 正则化效果 | 不均匀，实际效果弱 | 均匀有效 |
+| 泛化性能 | 较差 | 更好（实验验证）|
+| 适用场景 | 较少使用 | 大模型训练主流选择 |
+
+---
+
+## 6. 超参数详解
+
+| 超参数 | 符号 | 默认值 | 作用 |
+|--------|------|--------|------|
+| 学习率 | $\alpha$ | 1e-3 | 控制整体更新步长 |
+| 一阶矩衰减 | $\beta_1$ | 0.9 | 控制梯度均值的"记忆长度" |
+| 二阶矩衰减 | $\beta_2$ | 0.999 | 控制梯度方差的"记忆长度" |
+| 数值稳定项 | $\epsilon$ | 1e-8 | 防止除零 |
+| 权重衰减 | $\lambda$ | 0.01 | 控制 L2 正则化强度 |
+
+### $\beta_1$ 和 $\beta_2$ 的影响
+
+- $\beta_1 = 0.9$：$m_t$ 的有效"记忆窗口"约为 $\frac{1}{1-0.9} = 10$ 步
+- $\beta_2 = 0.999$：$v_t$ 的有效"记忆窗口"约为 $\frac{1}{1-0.999} = 1000$ 步
+- $v_t$ 记忆更长，使得学习率适应更稳定
+
+---
+
+## 7. PyTorch 实践
+
+### 7.1 基本用法
+
+```python
+import torch
+import torch.nn as nn
+
+model = nn.TransformerEncoder(...)
+
+# AdamW 优化器
+optimizer = torch.optim.AdamW(
+    model.parameters(),
+    lr=1e-4,
+    betas=(0.9, 0.999),     # (beta1, beta2)
+    eps=1e-8,
+    weight_decay=0.01       # 权重衰减（λ）
+)
+
+# 训练循环
+for batch in dataloader:
+    optimizer.zero_grad()
+    loss = model(batch)
+    loss.backward()
+    optimizer.step()
+```
+
+### 7.2 分组参数（常见技巧）
+
+不对 bias 和 LayerNorm 参数进行权重衰减：
+
+```python
+def get_param_groups(model, weight_decay=0.01):
+    """将参数分为两组：需要/不需要权重衰减"""
+    decay_params = []
+    no_decay_params = []
+    
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        # bias 和 LayerNorm 的参数不做权重衰减
+        if param.ndim <= 1 or name.endswith('.bias'):
+            no_decay_params.append(param)
+        else:
+            decay_params.append(param)
+    
+    return [
+        {'params': decay_params,    'weight_decay': weight_decay},
+        {'params': no_decay_params, 'weight_decay': 0.0},
+    ]
+
+param_groups = get_param_groups(model, weight_decay=0.1)
+optimizer = torch.optim.AdamW(param_groups, lr=3e-4)
+```
+
+### 7.3 查看优化器状态
+
+```python
+# 训练一步后查看内部状态
+optimizer.step()
+
+# 获取第一个参数的 m 和 v
+state = optimizer.state[list(model.parameters())[0]]
+print(state.keys())        # dict_keys(['step', 'exp_avg', 'exp_avg_sq'])
+print(state['exp_avg'])    # m_t（一阶矩）
+print(state['exp_avg_sq']) # v_t（二阶矩）
+print(state['step'])       # 当前时间步 t
+```
+
+---
+
+## 8. 内存占用分析
+
+AdamW 需要为每个参数维护 `m` 和 `v` 两个额外的状态向量：
+
+| 组件 | 内存占用 |
+|------|----------|
+| 模型参数 $\theta$ | $N$ 个浮点数 |
+| 一阶矩 $m$ | $N$ 个浮点数 |
+| 二阶矩 $v$ | $N$ 个浮点数 |
+| **合计** | **$3N$ 个浮点数** |
+
+以 GPT-2 (117M 参数) 为例（FP32）：
+- 参数：117M × 4 bytes ≈ **468 MB**
+- m + v：2 × 468 MB ≈ **936 MB**
+- 总计约 **1.4 GB**（仅优化器状态）
+
+这也是大模型训练中内存压力巨大的原因之一，因此有了：
+- **混合精度训练**：参数用 FP16，m/v 保持 FP32
+- **8-bit AdamW**（bitsandbytes）：量化 m/v 到 INT8
+- **Adafactor**：不显式存储 v，用低秩近似压缩
+
+---
+
+## 9. AdamW 在大模型训练中的使用
+
+### 典型超参数配置
+
+| 模型 | lr | $\beta_1$ | $\beta_2$ | $\lambda$ |
+|------|-----|-----------|-----------|-----------|
+| BERT | 5e-5 ~ 3e-4 | 0.9 | 0.999 | 0.01 |
+| GPT-3 | 6e-5 | 0.9 | 0.95 | 0.1 |
+| LLaMA | 3e-4 | 0.9 | 0.95 | 0.1 |
+| ViT | 1e-3 | 0.9 | 0.999 | 0.1 |
+
+> 注意：大模型通常使用 $\beta_2 = 0.95$ 而非 0.999，以减少二阶矩估计的"记忆"，更快适应梯度变化。
+
+### 配合 Warmup + Cosine Decay
+
+```python
+from transformers import get_cosine_schedule_with_warmup
+
+optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.1)
+
+scheduler = get_cosine_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=1000,       # 前 1000 步线性增大 lr
+    num_training_steps=100000,   # 总训练步数
+)
+
+# 训练循环
+for step, batch in enumerate(dataloader):
+    loss = model(batch)
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)  # 梯度裁剪
+    optimizer.step()
+    scheduler.step()
+    optimizer.zero_grad()
+```
+
+---
+
+## 10. 总结
+
+```
+AdamW 更新步骤：
+
+1. g_t  = ∇L(θ_{t-1})               ← 计算梯度
+
+2. m_t  = β1·m_{t-1} + (1-β1)·g_t   ← 一阶矩（对梯度）
+3. v_t  = β2·v_{t-1} + (1-β2)·g_t²  ← 二阶矩（对梯度²）
+
+4. m̂ = m_t / (1-β1^t)               ← 偏差修正
+   v̂ = v_t / (1-β2^t)
+
+5. θ_t = θ_{t-1} - α·m̂/(√v̂+ε)     ← 梯度驱动更新
+        - α·λ·θ_{t-1}               ← 权重衰减（独立，不通过 v 缩放）
+
+关键点：
+  ✅ m 和 v 完全是对梯度 g_t 的统计量，与参数 θ 无关
+  ✅ 权重衰减直接作用于参数，与梯度路径解耦
+  ✅ 自适应学习率：梯度不稳定 → v 大 → 步长小；梯度稳定 → v 小 → 步长大
+```
+
+---
+
+## 参考文献
+
+- Kingma, D. P., & Ba, J. (2014). *Adam: A Method for Stochastic Optimization.* ICLR 2015.
+- Loshchilov, I., & Hutter, F. (2019). *Decoupled Weight Decay Regularization.* ICLR 2019.

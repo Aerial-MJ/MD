@@ -73,3 +73,37 @@ pip install \
     "setuptools>=74.1.1"
     
 ```
+
+## max_token 的两种含义
+
+### vLLM 的两种 token 限制
+
+| 参数 | 控制范围 | 在哪设置 |
+|------|---------|---------|
+| `max_model_len` | 输入 + 输出的总 token 数（上下文窗口） | 启动 server / 初始化 `LLM` 时 |
+| `max_tokens` | 仅输出部分最多生成多少 token | 每次请求的 `SamplingParams` 中 |
+
+```python
+# max_model_len：模型级别，总上下文长度
+llm = LLM(model=model_path, max_model_len=4096)
+
+# max_tokens：请求级别，仅控制输出长度
+sampling_params = SamplingParams(max_tokens=256)
+```
+
+### Transformers 的两种 max token
+
+| 参数 | 控制范围 | 推荐 |
+|------|---------|------|
+| `max_length` | 输入 + 输出总长，超过截断 | ⚠️ 容易踩坑 |
+| `max_new_tokens` | 仅新生成的 token 数，不管输入多长 | ✅ 推荐 |
+
+```python
+# 不推荐：输入400 token + max_length=512，输出只剩112 token
+model.generate(input_ids, max_length=512)
+
+# 推荐：不管输入多长，输出固定最多256 token
+model.generate(input_ids, max_new_tokens=256)
+```
+
+> **常见坑**：用 `max_length` 时，若输入本身已很长，输出会被严重压缩，优先使用 `max_new_tokens`。

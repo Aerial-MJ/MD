@@ -247,26 +247,110 @@ print(state['step'])       # 当前时间步 t
 
 ---
 
-## 8. 内存占用分析
+## 8. 内存占用与精度分析
 
-AdamW 需要为每个参数维护 `m` 和 `v` 两个额外的状态向量：
+### 8.1 m 和 v 为什么必须是 FP32？
 
-| 组件 | 内存占用 |
-|------|----------|
-| 模型参数 $\theta$ | $N$ 个浮点数 |
-| 一阶矩 $m$ | $N$ 个浮点数 |
-| 二阶矩 $v$ | $N$ 个浮点数 |
-| **合计** | **$3N$ 个浮点数** |
+`m` 和 `v` 需要持续累积很小的增量。如果用 FP16：
+- FP16 数值范围小，累积时容易**下溢（underflow）**，更新量直接变 0
+- 训练初期 `v` 值极小，FP16 精度粒度不足，会引起数值不稳定甚至发散
 
-以 GPT-2 (117M 参数) 为例（FP32）：
+因此，**无论是否使用混合精度训练，m 和 v 始终保持 FP32**。
+
+### 8.2 纯 FP32 训练的内存占用
+
+AdamW 需要为每个参数维护 `m` 和 `v` 两个额外状态：
+
+| 组件 | 精度 | 每参数占用 |
+|------|------|-----------|
+| 模型参数 $\theta$ | FP32 | 4 bytes |
+| 一阶矩 $m$ | FP32 | 4 bytes |
+| 二阶矩 $v$ | FP32 | 4 bytes |
+| **合计** | | **12 bytes/参数** |
+
+以 GPT-2（117M 参数）为例：
 - 参数：117M × 4 bytes ≈ **468 MB**
 - m + v：2 × 468 MB ≈ **936 MB**
-- 总计约 **1.4 GB**（仅优化器状态）
+- 总计约 **1.4 GB**（仅优化器状态，不含激活值）
 
-这也是大模型训练中内存压力巨大的原因之一，因此有了：
-- **混合精度训练**：参数用 FP16，m/v 保持 FP32
-- **8-bit AdamW**（bitsandbytes）：量化 m/v 到 INT8
-- **Adafactor**：不显式存储 v，用低秩近似压缩
+### 8.3 混合精度训练（AMP）的内存布局
+
+混合精度训练的核心思路：**前向/反向用 FP16 加速，参数更新用 FP32 保证精度**。
+
+```
+前向传播 / 反向传播：
+  模型参数（FP16）  ← 2 bytes，计算快，节省显存
+  梯度 g_t（FP16） ← 反向传播产生
+
+优化器 step（全程 FP32）：
+  主参数副本（FP32）← 4 bytes，高精度参数，用于实际更新
+  一阶矩 m（FP32）  ← 4 bytes
+  二阶矩 v（FP32）  ← 4 bytes
+
+更新完成后：FP32 主参数 → 转回 FP16 → 供下一步前向使用
+```
+
+**主参数副本（Master Weights）是什么？**
+
+混合精度中需要额外保留一份 FP32 参数的原因：
+- FP16 的精度粒度约为 $10^{-3}$，学习率 × 梯度往往是 $10^{-5} \sim 10^{-7}$ 量级
+- 直接用 FP16 做 `param -= lr * update` 时，更新量会被**直接舍零**，参数永远不变
+- FP32 副本保证每步微小更新都能被正确累积
+
+**需要手动管理吗？** —— 不需要。PyTorch AMP、Accelerate、DeepSpeed 都会自动处理，只需：
+
+```python
+from torch.cuda.amp import autocast, GradScaler
+
+scaler = GradScaler()
+
+for batch in dataloader:
+    with autocast():                          # 前向用 FP16
+        loss = model(batch)
+    scaler.scale(loss).backward()             # 梯度缩放防下溢
+    scaler.step(optimizer)                    # 内部自动用 FP32 更新
+    scaler.update()
+    optimizer.zero_grad()
+```
+
+混合精度每参数实际占用：
+
+| 组件 | 精度 | 每参数占用 |
+|------|------|-----------|
+| FP16 参数（前向用） | FP16 | 2 bytes |
+| FP32 主参数副本 | FP32 | 4 bytes |
+| 一阶矩 $m$ | FP32 | 4 bytes |
+| 二阶矩 $v$ | FP32 | 4 bytes |
+| **合计** | | **14 bytes/参数** |
+
+> 相比纯 FP32 的 12 bytes/参数，混合精度反而多了 2 bytes（FP16 参数副本）。  
+> 节省的是**激活值**（前向过程的中间结果），大 batch 时效果显著。
+
+### 8.4 进一步压缩：8-bit AdamW
+
+如果显存极度紧张，可以用 bitsandbytes 把 m/v 量化到 INT8：
+
+```python
+import bitsandbytes as bnb
+
+optimizer = bnb.optim.AdamW8bit(
+    model.parameters(),
+    lr=3e-4,
+    weight_decay=0.01
+)
+# m/v 只占 1 byte，优化器状态显存减少约 75%
+# 实践中对最终精度影响极小
+```
+
+| 方案 | m/v 精度 | 优化器状态/参数 |
+|------|----------|----------------|
+| 纯 FP32 | FP32 | 8 bytes（m+v） |
+| 混合精度 AMP | FP32 | 8 bytes（m+v） |
+| 8-bit AdamW | INT8 | 2 bytes（m+v）|
+
+其他替代方案：
+- **Adafactor**：不显式存储 v，用低秩近似压缩，显存接近 SGD
+- **CAME**：在 Adafactor 基础上加入置信度感知
 
 ---
 
@@ -329,6 +413,97 @@ AdamW 更新步骤：
   ✅ 权重衰减直接作用于参数，与梯度路径解耦
   ✅ 自适应学习率：梯度不稳定 → v 大 → 步长小；梯度稳定 → v 小 → 步长大
 ```
+
+---
+
+## 11. 权重衰减 vs 学习率调度（常见混淆）
+
+### 11.1 两个完全不同的概念
+
+| | 权重衰减 λ | Warmup + Cosine 调度 |
+|--|-----------|----------------------|
+| **作用对象** | 参数 θ 本身 | 学习率 lr |
+| **目的** | 正则化，防止过拟合 | 训练稳定性，帮助收敛 |
+| **作用时机** | 每步都持续缩小参数 | 控制每步的步长大小 |
+| **超参数性质** | 固定常数（如 0.01） | 随 step 变化的动态曲线 |
+
+### 11.2 权重衰减 λ 是什么？
+
+**本质是正则化**，目的是防止参数过大、防止过拟合。
+
+每步更新时，参数会额外"收缩"一点：
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} - \underbrace{\alpha \lambda \theta_{t-1}}_{\text{权重衰减}}$$
+
+等价形式：
+
+$$\theta_t = \theta_{t-1} \cdot \underbrace{(1 - \alpha\lambda)}_{\approx 0.999999} - \alpha \cdot \text{梯度项}$$
+
+以 λ=0.01、lr=1e-4 为例：
+- 每步参数额外缩小系数：$1 - 10^{-4} \times 0.01 = 0.999999$
+- 训练 10000 步后参数整体约缩小到 $0.999999^{10000} \approx 0.99$
+
+**直觉**：大权重意味着模型对某些特征过度依赖 → 强迫参数保持小值 → 泛化更好。
+
+### 11.3 Warmup + Cosine 调度是什么？
+
+**本质是学习率调度（LR Schedule）**，控制学习率 `lr` 随训练步数的变化曲线，与参数本身无关。
+
+```
+lr
+▲
+│      ___-----------___
+│     /                  \
+│    /                    \___
+│   /
+│  /  ← Warmup        Cosine Decay →
+└──────────────────────────────────→ step
+     0    N_warmup          N_total
+```
+
+- **Warmup**：前 N 步 lr 从 0 线性增大到目标值。
+  - 原因：训练初期 m/v 还未建立，梯度方向不可靠，大 lr 会导致震荡
+- **Cosine Decay**：之后 lr 按余弦曲线从峰值降到接近 0。
+  - 原因：训练后期需要精细调整，大 lr 会在最优解附近来回跳
+
+```python
+from transformers import get_cosine_schedule_with_warmup
+
+scheduler = get_cosine_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps=1000,
+    num_training_steps=100000,
+)
+```
+
+### 11.4 两者同时使用，互不干扰
+
+```python
+optimizer = torch.optim.AdamW(
+    params,
+    lr=3e-4,          # lr 的峰值（被 scheduler 动态调整）
+    weight_decay=0.01  # λ，固定不变，每步都作用于参数
+)
+scheduler = get_cosine_schedule_with_warmup(optimizer, ...)
+
+for step, batch in enumerate(dataloader):
+    loss = model(batch)
+    loss.backward()
+    optimizer.step()   # ← 梯度更新 + 权重衰减（λ 固定）
+    scheduler.step()   # ← 调整 lr（按 warmup/cosine 曲线）
+    optimizer.zero_grad()
+```
+
+每一步实际发生的事：
+
+```
+Step t：
+  lr_t   = cosine_schedule(t)          ← scheduler 决定当前步长
+  θ_t    = θ_{t-1} - lr_t * 梯度项     ← 梯度更新，步长由 lr_t 决定
+           - lr_t * λ * θ_{t-1}        ← 权重衰减，比例固定为 λ
+```
+
+> **总结**：权重衰减控制"参数有多大"，学习率调度控制"每步走多快"，是完全正交的两个机制。
 
 ---
 

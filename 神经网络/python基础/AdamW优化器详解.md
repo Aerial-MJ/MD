@@ -507,6 +507,64 @@ Step t：
 
 ---
 
+## 12. SGD 原始公式与 AdamW 的区别
+
+### 12.1 原始 SGD 公式
+
+**最基础的 SGD（随机梯度下降）**：
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot g_t$$
+
+其中 $g_t = \nabla_\theta \mathcal{L}(\theta_{t-1})$ 是当前 batch 的梯度。
+
+---
+
+**带动量的 SGD（SGD with Momentum）**：
+
+$$v_t = \beta \cdot v_{t-1} + g_t$$
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot v_t$$
+
+---
+
+**带权重衰减的 SGD**：
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot g_t - \alpha \lambda \theta_{t-1}$$
+
+---
+
+### 12.2 SGD vs AdamW 核心区别对比
+
+| 特性 | SGD | AdamW |
+|------|-----|-------|
+| **梯度估计** | 直接用原始梯度 $g_t$ | 一阶矩 $\hat{m}_t$（梯度指数平均） |
+| **学习率自适应** | ❌ 所有参数同一学习率 | ✅ 二阶矩 $\hat{v}_t$ 自适应缩放 |
+| **更新幅度** | 随梯度大小波动大 | $\frac{\hat{m}_t}{\sqrt{\hat{v}_t}+\epsilon}$ 归一化，更稳定 |
+| **权重衰减** | 与梯度耦合（L2正则） | **解耦**，独立施加 |
+| **超参数** | $\alpha, \beta$（简单） | $\alpha, \beta_1, \beta_2, \epsilon, \lambda$（复杂） |
+| **收敛速度** | 慢，需精心调 lr | 快，对 lr 不敏感 |
+| **泛化能力** | 通常更好（平坦极小值） | 略差，但解耦 wd 后有改善 |
+
+---
+
+### 12.3 关键本质区别
+
+**SGD 更新**：
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot g_t$$
+
+步长 = 学习率 × 梯度，**梯度大的参数走得远**。
+
+**AdamW 更新**：
+
+$$\theta_t = \theta_{t-1} - \alpha \cdot \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon} - \alpha\lambda\theta_{t-1}$$
+
+步长被 $\sqrt{\hat{v}_t}$（历史梯度平方根）**归一化**，梯度大的参数反而被压制，**每个参数的有效步长趋于均匀**。
+
+> 💡 **一句话总结**：SGD 是"走多远看梯度大小"，AdamW 是"归一化后走差不多远，但方向更准"。这就是为什么 Adam 系列在 LLM 训练中更流行——参数量巨大时，各参数梯度尺度差异悬殊，自适应学习率至关重要。
+
+---
+
 ## 参考文献
 
 - Kingma, D. P., & Ba, J. (2014). *Adam: A Method for Stochastic Optimization.* ICLR 2015.

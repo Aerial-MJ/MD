@@ -9,8 +9,7 @@
 ## 方法一：nvidia-smi 加完整命令行（推荐）
 
 ```bash
-nvidia-smi --query-compute-apps=pid --format=csv,noheader \
-  | xargs -I{} ps -p {} -o pid,user,cmd --no-headers
+nvidia-smi --query-compute-apps=pid,used_memory,name --format=csv
 ```
 
 ---

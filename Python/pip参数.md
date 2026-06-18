@@ -1,6 +1,42 @@
 # pip 常用参数总结
 
-## 安装相关
+## 一、命令行结构说明
+
+pip 的命令结构是：**主命令 + 子命令 + 操作对象 + 参数**
+
+```
+pip   install    verl      -i    https://xxx
+ ↑       ↑         ↑        ↑        ↑
+主命令  子命令   操作对象   参数     参数的值
+```
+
+| 概念 | 说明 | 有无前缀 |
+|------|------|---------|
+| **子命令** | 做什么动作（install / index / list ...） | 无 `-` |
+| **操作对象** | 位置参数，按顺序填写 | 无 `-` |
+| **参数/选项** | 修饰命令的行为 | 有 `-` 或 `--` |
+
+### argparse 对应写法
+
+```python
+import argparse
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers(dest="command")
+
+install_parser = subparsers.add_parser("install")
+install_parser.add_argument("package")              # 操作对象：位置参数，没有 --
+install_parser.add_argument("-i", "--index-url")    # 选项：有 -
+install_parser.add_argument("-e", "--editable", action="store_true")
+```
+
+```bash
+python cli.py install verl -i https://xxx
+# → Namespace(command='install', package='verl', index_url='https://xxx', editable=False)
+```
+
+---
+
+## 二、安装相关参数
 
 ### 基础安装
 
@@ -76,29 +112,22 @@ pip install -U <包名>
 
 ---
 
-### `--index-url` / `-i`：指定镜像源
+### `-i` / `--index-url`：指定镜像源
 
 ```bash
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple <包名>
 ```
 
-常用国内镜像：
+和 `--extra-index-url` 的区别：
 
-| 镜像 | 地址 |
+| 参数 | 行为 |
 |------|------|
-| 清华 | `https://pypi.tuna.tsinghua.edu.cn/simple` |
-| 阿里 | `https://mirrors.aliyun.com/pypi/simple` |
-| 中科大 | `https://pypi.mirrors.ustc.edu.cn/simple` |
-
----
-
-### `--extra-index-url`：追加镜像源
+| `-i` / `--index-url` | **替换**默认源 |
+| `--extra-index-url` | **追加**到默认源，两个源都会查 |
 
 ```bash
 pip install --extra-index-url https://xxx <包名>
 ```
-
-和 `-i` 的区别：`-i` 替换默认源，`--extra-index-url` 是在默认源基础上追加。
 
 ---
 
@@ -122,7 +151,24 @@ pip install --no-deps <包名>
 
 ---
 
-## 组合用法示例
+## 三、子命令：pip index
+
+`index` 是 pip 的子命令（不是参数），用于查询包的版本信息：
+
+```bash
+# 查看某个包的所有可用版本
+pip index versions <包名>
+
+# 指定源查询
+pip index versions <包名> -i https://your-internal-source/simple/
+
+# 技巧：写一个不存在的版本，pip 报错时会列出所有可用版本
+pip install <包名>==
+```
+
+---
+
+## 四、组合用法示例
 
 ```bash
 # 安装需要编译的包（如 flash-attn），用当前环境编译，不装用户目录
@@ -133,16 +179,21 @@ pip install --no-build-isolation --no-user -e .
 
 # 指定镜像源升级
 pip install -U -i https://pypi.tuna.tsinghua.edu.cn/simple torch
+
+# 查询内部源里某个包的版本
+pip index versions verl -i http://your-internal-pypi-url/simple/
 ```
 
 ---
 
-## 其他常用命令
+## 五、其他常用命令
 
 ```bash
-pip list                    # 列出已安装的包
-pip show <包名>             # 查看某个包的详细信息（版本、路径等）
+pip list                       # 列出已安装的包
+pip show <包名>                # 查看某个包的详细信息（版本、路径等）
 pip freeze > requirements.txt  # 导出当前环境依赖
-pip uninstall <包名>        # 卸载
-pip cache purge             # 清空 pip 缓存
+pip uninstall <包名>           # 卸载
+pip cache purge                # 清空 pip 缓存
+pip config list                # 查看当前 pip 源配置
+pip config debug               # 查看配置文件路径
 ```

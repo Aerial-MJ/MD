@@ -51,6 +51,9 @@ ls -la /proc/*/fd 2>/dev/null | grep nvidia | grep '\->' \
 ```bash
 lsof /dev/nvidia* 2>/dev/null | awk 'NR>1 {print $1, $2}' | sort -u
 ```
+```bash
+lsof /dev/nvidia* 2>/dev/null | awk 'NR>1 {print $2}' | sort -u | xargs -r kill -9; echo "done"
+```
 
 ---
 

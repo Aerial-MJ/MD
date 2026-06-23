@@ -39,9 +39,17 @@ fuser /dev/nvidia*
 ## 方法四：通过 /proc 查持有 nvidia 设备的进程
 
 ```bash
-ls -la /proc/*/fd 2>/dev/null | grep nvidia \
+ls -la /proc/*/fd 2>/dev/null | grep nvidia | grep '\->' \
   | awk -F'/' '{print $3}' | sort -u \
   | xargs -I{} ps -p {} -o pid,cmd --no-headers 2>/dev/null
+```
+
+> 必须加 `grep '\->'` 过滤，只保留软链接行（`ls -la` 输出中还有 `total xx` 和目录头行，混进去会导致 `awk $3` 取错）。
+
+或者用更简洁的 `lsof` 替代（推荐）：
+
+```bash
+lsof /dev/nvidia* 2>/dev/null | awk 'NR>1 {print $1, $2}' | sort -u
 ```
 
 ---

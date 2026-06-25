@@ -392,54 +392,58 @@ find /some/very/long/path -name "*.log" -mtime -1
 
 ---
 
-## 七、命令参数（flag）详解
+## 七、命令参数详解
 
-### 什么是 flag / 参数
+### 参数的层级关系
 
-终端命令的参数通常有两种形式：
-
-```bash
-命令  -短参数  --长参数  值  位置参数
 ```
+命令行参数（argument）
+├── 位置参数（positional argument）  → 无 -，按顺序传
+└── 选项（option）                   → 有 - 或 --
+    ├── 带值选项（value option）     → -n 100 / --port 8080
+    └── flag（开关）                 → -a / --verbose（不带值，有就生效）
+```
+
+> **flag 是 option 的子集**，专指不带值的开关型选项。带值的叫 option/选项，不带值的才叫 flag。日常口语里很多人混用，但严格来说：flag ⊂ option ⊂ argument。
+
+选项通常有两种长度：
 
 | 形式 | 示例 | 含义 |
 |------|------|------|
-| `-字母` | `-n`、`-f`、`-L` | 短参数，单个字母，前面一个横线 |
-| `--单词` | `--name`、`--port` | 长参数，完整单词，前面两个横线 |
+| `-字母` | `-n`、`-f`、`-L` | 短选项，单个字母，前面一个横线 |
+| `--单词` | `--name`、`--port` | 长选项，完整单词，前面两个横线 |
 | 无横线 | `train.py`、`/tmp` | 位置参数，按顺序传入 |
 
-### `-d` 这类 flag 能当参数吗？
-
-**能。** `-d` 就是一个标准的短参数（short flag），和其他 `-x` 格式完全一样。
-
-常见例子：
+### 常见例子
 
 ```bash
-mkdir -p output/logs     # -p：自动创建父目录，不报错
-find . -type d           # -type d：只搜索目录（d = directory）
-find . -type f           # -type f：只搜索文件（f = file）
-ls -l -a                 # -l：详细列表；-a：显示隐藏文件
-ls -la                   # 短参数可合并写：等价于 -l -a
-ssh -L 6006:localhost:6006 -N host  # -L、-N 都是 flag
-tail -n 100 train.log    # -n 后面跟数字值
+mkdir -p output/logs     # -p：flag（开关），自动创建父目录，不报错
+find . -type d           # -type：带值选项，后跟 d 表示只搜索目录
+find . -type f           # -type：带值选项，后跟 f 表示只搜索文件
+ls -l -a                 # -l、-a 都是 flag，可合并写成 -la
+ls -la                   # 短 flag 可合并写：等价于 -l -a
+ssh -L 6006:localhost:6006 -N host  # -L 是带值选项，-N 是 flag
+tail -n 100 train.log    # -n 是带值选项，后面跟数字
 ```
 
-### flag 带值 vs 不带值
+### 带值选项 vs flag（开关）
 
 ```bash
-# 不带值的 flag（开关型，有它就生效）
-find . -type d     # -type 后面跟 d，表示"只找目录类型"
-ls -a              # -a 就是开关，加了就显示隐藏文件
+# flag（不带值，开关型，有它就生效）
+ls -a              # -a 是 flag，加了就显示隐藏文件
+ls -l              # -l 是 flag，加了就显示详细列表
+ssh -N host        # -N 是 flag，不执行远程命令
 
-# 带值的 flag（参数型，后面必须跟一个值）
+# 带值选项（后面必须跟一个值）
 tail -n 100        # -n 后面跟数字
+find . -type f     # -type 后面跟类型字符
 find . -name "*.py"  # -name 后面跟文件名模式
 ssh -p 8416        # -p 后面跟端口号
 ```
 
-### 带值 flag 的两种写法：空格 vs 紧贴
+### 带值选项的两种写法：空格 vs 紧贴
 
-带值的短参数，**值可以紧贴在 flag 后面，也可以用空格隔开**，两种写法完全等价：
+带值的短选项，**值可以紧贴在选项后面，也可以用空格隔开**，两种写法完全等价：
 
 ```bash
 # 空格隔开（更直观）

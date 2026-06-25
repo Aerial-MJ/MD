@@ -528,3 +528,122 @@ print(next(file)) # 输出文件的第一行
 
 print(next(file, '文件结束')) # 继续输出下一行或者 '文件结束'
 ```
+
+---
+
+## 五、迭代器与可迭代对象
+
+### 迭代器转 list / tuple
+
+直接用内置函数包一下就行：
+
+```python
+it = iter([1, 2, 3, 4, 5])
+
+# 转成 list
+lst = list(it)
+print(lst)  # [1, 2, 3, 4, 5]
+
+# ⚠️ 迭代器已耗尽，要重新创建
+it = iter([1, 2, 3, 4, 5])
+
+# 转成 tuple
+tpl = tuple(it)
+print(tpl)  # (1, 2, 3, 4, 5)
+```
+
+> ⚠️ **注意**：迭代器只能消耗一次，转成 list/tuple 之后原迭代器就空了。
+
+---
+
+### 可迭代对象 vs 迭代器
+
+| | 可迭代对象（Iterable） | 迭代器（Iterator） |
+|--|----------------------|-------------------|
+| **定义** | 能被迭代的对象 | 记录迭代状态的对象 |
+| **必须实现** | `__iter__()` | `__iter__()` + `__next__()` |
+| **能否重复迭代** | ✅ 可以多次 | ❌ 只能一次 |
+| **典型例子** | list、tuple、str、dict | generator、file 对象 |
+
+```python
+lst = [1, 2, 3]  # 可迭代对象
+
+# 可以多次迭代
+for x in lst: print(x)
+for x in lst: print(x)  # 没问题，从头再来
+
+# iter() 把可迭代对象 → 迭代器
+it = iter(lst)
+
+print(next(it))  # 1
+print(next(it))  # 2
+print(next(it))  # 3
+print(next(it))  # ❌ StopIteration，耗尽了
+```
+
+**关系图：**
+
+```
+可迭代对象
+    │
+    │  iter()
+    ▼
+  迭代器  ──── next() ──→ 逐个返回值
+                              │
+                          耗尽后抛出
+                         StopIteration
+```
+
+> 迭代器本身也是可迭代对象（因为它也实现了 `__iter__`），但反过来不成立。
+
+---
+
+### 怎么判断
+
+```python
+from collections.abc import Iterable, Iterator
+
+lst = [1, 2, 3]
+it = iter(lst)
+
+print(isinstance(lst, Iterable))   # True  - 可迭代对象
+print(isinstance(lst, Iterator))   # False - 不是迭代器
+
+print(isinstance(it, Iterable))    # True  - 也是可迭代对象
+print(isinstance(it, Iterator))    # True  - 是迭代器
+```
+
+---
+
+### enumerate 是迭代器
+
+`enumerate` 返回的是一个迭代器，**只能消耗一次**：
+
+```python
+from collections.abc import Iterator
+
+lst = [1, 2, 3]
+e = enumerate(lst)
+
+print(isinstance(e, Iterator))  # True
+
+print(list(e))  # [(0, 1), (1, 2), (2, 3)]
+print(list(e))  # [] 已经耗尽了
+```
+
+类似地，以下内置函数返回的都是**惰性迭代器**（不会一次性把结果算出来放内存，只有 `next()` 或 `for` 循环时才逐个计算）：
+
+```python
+map()       # map 对象
+filter()    # filter 对象
+zip()       # zip 对象
+reversed()  # list_reverseiterator
+enumerate() # enumerate 对象
+```
+
+---
+
+### 一句话总结
+
+> **可迭代对象**是"有资格被迭代的"，**迭代器**是"正在执行迭代、记着当前位置的"。
+> `for` 循环底层会自动对可迭代对象调用 `iter()` 拿到迭代器，再反复调用 `next()` 取值。

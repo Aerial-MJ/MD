@@ -1,5 +1,11 @@
 # GPU 显存进程查看
 
+删除显存的程序
+```bash
+lsof /dev/nvidia* 2>/dev/null | awk 'NR>1 {print $2}' | sort -u | xargs -r kill -9; echo "done"
+```
+
+
 ## 背景
 
 `nvidia-smi` 显示的 PID 是真实的，但有时是子进程 PID，看不出是哪个"任务"（尤其是 ray 多进程训练场景）。

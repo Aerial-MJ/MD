@@ -654,3 +654,87 @@ min(r·A, clip·A)          β · KL
 ```
 
 **一句话：** KL 就是量化"当前模型和参考模型在这个 token 上差了多少"，差得越多惩罚越大，用来防止模型训歪。每个 token 单独算 KL，然后和 reward 项加在一起，沿着 token 维度取平均，再沿着回答维度取平均，最后得到一个标量 loss，backward 一次搞定。
+
+---
+
+## 九、GRPO 完整公式 & 为什么 KL 要近似
+
+### GRPO 完整公式
+
+$$\mathcal{L}_\text{GRPO}(\theta) = -\frac{1}{G}\sum_{g=1}^{G} \frac{1}{T_g}\sum_{t=1}^{T_g} \left[\min\left(r_{g,t}\cdot\hat{A}_g,\ \text{clip}(r_{g,t}, 1{-}\varepsilon, 1{+}\varepsilon)\cdot\hat{A}_g\right) - \beta\cdot\text{KL}_{g,t}\right]$$
+
+其中各项定义：
+
+$$r_{g,t} = \frac{\pi_\theta(y_{g,t} \mid x, y_{g,<t})}{\pi_{\theta_\text{old}}(y_{g,t} \mid x, y_{g,<t})}, \quad \hat{A}_g = \frac{R_g - \text{mean}(R_{1..G})}{\text{std}(R_{1..G})}$$
+
+$$\text{KL}_{g,t} = \frac{\pi_\theta(y_{g,t})}{\pi_\text{ref}(y_{g,t})} - \log\frac{\pi_\theta(y_{g,t})}{\pi_\text{ref}(y_{g,t})} - 1$$
+
+---
+
+### 为什么 KL 要近似？
+
+#### 标准 KL 散度长什么样
+
+标准 KL 是对**整个概率分布**求期望：
+
+$$\text{KL}(\pi_\theta \| \pi_\text{ref}) = \sum_{v \in \mathcal{V}} \pi_\theta(v \mid \text{context}) \cdot \log\frac{\pi_\theta(v \mid \text{context})}{\pi_\text{ref}(v \mid \text{context})}$$
+
+问题在于：**这个求和是对整个词表 \(\mathcal{V}\) 的**，vocab_size 通常有 50000~150000 个词。
+
+```
+每个 token 位置，标准 KL 需要：
+  1. 跑一次完整 softmax → 得到 50000 个概率
+  2. 对每个词计算 π_θ(v) · log(π_θ(v)/π_ref(v))
+  3. 全部加起来
+
+每个 token 位置都要这样算一遍
+→ 计算量 = seq_len × vocab_size × 2次forward
+→ 显存直接爆炸
+```
+
+#### 近似形式怎么来的
+
+令 \(u = \dfrac{\pi_\theta(y_t)}{\pi_\text{ref}(y_t)}\)，近似形式是：
+
+$$\text{KL}_\text{approx} = u - \log u - 1$$
+
+**推导依据：** 对 \(f(u) = u - \log u - 1\) 在 \(u=1\) 处做 Taylor 展开：
+
+$$f(u) \approx \frac{1}{2}(u-1)^2 + O((u-1)^3)$$
+
+标准 KL 在 \(u \approx 1\) 时同样有 \(\text{KL} \approx \frac{1}{2}\mathbb{E}[(u-1)^2]\)，两者一致。
+
+更严格的理解：\(f(u)\) 是标准 KL 的**无偏估计**，即：
+
+$$\mathbb{E}_{y \sim \pi_\theta}\left[\frac{\pi_\theta(y)}{\pi_\text{ref}(y)} - \log\frac{\pi_\theta(y)}{\pi_\text{ref}(y)} - 1\right] \approx \text{KL}(\pi_\theta \| \pi_\text{ref})$$
+
+等号左边只需要**采样到的那一个 token** 的概率，不需要遍历整个词表。
+
+#### 两种形式对比
+
+| 对比项 | 标准 KL | 近似 \(u - \log u - 1\) |
+|--------|---------|------------------------|
+| 需要什么概率 | 词表所有 50000 个词的概率 | **只需要实际生成的那个 token** 的概率 |
+| 计算量 | \(O(\text{vocab\_size})\) | \(O(1)\) |
+| 显存 | 需要存 logits 全表 | 只需要两个标量 |
+| 数学性质 | 精确值 | 无偏估计（期望上相等） |
+| 值域 | ≥ 0 | ≥ 0（在 \(u=1\) 处取最小值 0） |
+
+#### 直觉理解
+
+```
+标准 KL 问的是：
+  "两个模型在所有可能的词上，分布差多少？"
+  → 需要看完所有 50000 个词
+
+近似 KL 问的是：
+  "模型实际选了这个词，两个模型对这个词的看法差多少？"
+  → 只需要看这 1 个词
+
+训练时模型已经采样了一条路径（生成了具体的 token 序列）
+→ 对这条路径上每个 token 用近似 KL
+→ 期望上等价于标准 KL
+→ 但计算量从 O(vocab) 降到 O(1)
+```
+
+**一句话：** 标准 KL 需要对全词表求和，vocab_size 五万起步，计算量直接爆；近似形式 \(u - \log u - 1\) 只用实际生成的那个 token 的概率，是标准 KL 的无偏估计，期望上等价但计算量降了几万倍。

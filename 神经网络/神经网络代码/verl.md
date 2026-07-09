@@ -163,7 +163,328 @@ critic/returns    → 每个回答的 reward 值
 
 ---
 
-### 6.2 Advantages（优势值）
+### 6.2 Actor/Loss（策略损失）
+
+**本质：** 策略梯度损失，衡量模型"学习方向的正确性"。
+
+```
+训练目标：让好回答（advantages>0）的概率↑，差回答（advantages<0）的概率↓
+
+loss 下降 → 模型在按 advantages 指引的方向优化 ✅
+loss 不降 → 模型没有有效学习
+```
+
+#### 为什么需要 Loss？
+
+神经网络训练的本质：
+
+```
+定义一个 Loss（衡量"现在有多差"）
+    ↓
+对 Loss 求梯度（找改进方向）
+    ↓
+更新参数（往更好的方向走一步）
+```
+
+GRPO 的 Loss 不是"对错"，而是**"哪个回答更好"**。
+
+#### 完整公式
+
+$$\mathcal{L}_\text{GRPO} = \underbrace{-\mathbb{E}\left[\min\left(\frac{\pi_\theta}{\pi_{\theta_\text{old}}} \cdot A,\ \text{clip}\left(\frac{\pi_\theta}{\pi_{\theta_\text{old}}}, 1{-}\varepsilon, 1{+}\varepsilon\right) \cdot A\right)\right]}_{\text{pg\_loss（主项）}} + \underbrace{\beta \cdot \text{KL}(\pi_\theta \| \pi_\text{ref})}_{\text{kl\_loss}} \underbrace{-\ \alpha \cdot H(\pi_\theta)}_{\text{entropy\_loss}}$$
+
+#### 逐项拆解
+
+**① pg_loss（策略梯度损失，主项）**
+
+```
+ratio = π_new(a|s) / π_old(a|s)    ← 新旧策略的概率比
+
+结合 advantages（A）：
+  A > 0（好回答）→ 希望 ratio 尽量大 → 增大输出概率
+  A < 0（差回答）→ 希望 ratio 尽量小 → 减小输出概率
+
+为什么要 clip？
+  没有 clip：模型会拼命增大某 token 的概率 → 单步跳变 → 训练崩溃
+  clip 限制 ratio 在 [1-ε, 1+ε]（ε 通常=0.2）
+  → 每步最多允许概率变化 ±20%，像安全带防止"翻车"
+```
+
+**② kl_loss（KL 散度惩罚）**
+
+```
+KL(π_new || π_ref)：当前策略与参考模型（SFT 基础模型）的分布距离
+
+作用：防止模型偏离参考模型太远（奖励作弊）
+```
+
+**③ entropy_loss（熵正则）**
+
+```
+-α × H(π)：负号表示鼓励熵大
+
+作用：防止模式坍塌，保持输出多样性
+```
+
+#### 三项汇总
+
+```
+总 Loss = pg_loss    ← 主项：让好回答概率↑，差回答概率↓
+        + kl_loss    ← 约束：别偏离参考模型太远
+        - entropy    ← 正则：保持多样性
+
+优化目标：最小化这个 Loss
+```
+
+**正常的变化趋势：**
+
+```
+训练初期：loss 较高（~0.15）← 模型随机，好坏回答概率差不多
+    ↓
+训练中期：loss 逐步下降    ← 模型学会让好回答概率 > 差回答概率
+    ↓
+训练后期：loss 趋于平稳（~0.05）→ 收敛 ✅
+```
+
+**⚠️ 注意：** loss 下降 ≠ 模型变好，必须配合 `reward/mean` 一起看。loss 下降但 reward 不涨，说明模型学会了"捷径"（比如对所有输入输出同一高分格式）。
+
+---
+
+#### 深入理解：Loss 是什么函数，怎么更新参数
+
+##### Loss 是关于参数 θ 的多元函数
+
+神经网络有几亿个参数，拼成一个向量 \(\theta = [\theta_1, \theta_2, \dots, \theta_n]\)，Loss 就是关于 \(\theta\) 的 n 元函数：
+
+$$\mathcal{L}(\theta_1, \theta_2, \dots, \theta_n)$$
+
+**训练目标：找到让 \(\mathcal{L}(\theta)\) 最小的 \(\theta\)。**
+
+梯度就是对每个参数求偏导，组成一个 n 维向量：
+
+$$\nabla_\theta \mathcal{L} = \left[\frac{\partial \mathcal{L}}{\partial \theta_1},\ \frac{\partial \mathcal{L}}{\partial \theta_2},\ \dots,\ \frac{\partial \mathcal{L}}{\partial \theta_n}\right]$$
+
+- 偏导 > 0：增大这个参数会让 Loss 变大 → 应该减小它
+- 偏导 < 0：增大这个参数会让 Loss 变小 → 应该增大它
+
+参数更新公式（梯度下降）：
+
+$$\theta \leftarrow \theta - \eta \cdot \nabla_\theta \mathcal{L}$$
+
+```
+把 Loss 想象成山地地形，θ 是你的位置：
+
+∇L = 当前位置最陡的上坡方向
+-∇L = 最陡的下坡方向
+
+每步往下坡方向走 η 距离 → 最终走到山谷（Loss 最小）
+```
+
+##### 为什么能算出来：反向传播（链式法则）
+
+Loss 经过很多层计算才和 \(\theta\) 关联，用链式法则逐层反向传播：
+
+$$\frac{\partial \mathcal{L}}{\partial \theta} = \frac{\partial \mathcal{L}}{\partial a_n} \cdot \frac{\partial a_n}{\partial a_{n-1}} \cdots \frac{\partial a_2}{\partial a_1} \cdot \frac{\partial a_1}{\partial \theta}$$
+
+这就是"反向传播（Backprop）"，PyTorch 的 `loss.backward()` 自动帮你算，`optimizer.step()` 就是执行 \(\theta \leftarrow \theta - \eta \cdot \nabla L\)。
+
+##### SFT 的 Loss 怎么从 token 叠到 Batch
+
+**单个 token 的 Loss：**
+
+$$\mathcal{L}_t = -\log P_\theta(y_t \mid x, y_{<t})$$
+
+```
+模型说"有效图"概率是 90% → -log(0.9) ≈ 0.105  ← loss 小，预测准
+模型说"有效图"概率是 10% → -log(0.1) ≈ 2.303  ← loss 大，预测错
+```
+
+**一个序列（T 个 token）：**
+
+$$\mathcal{L}_\text{seq} = -\frac{1}{T}\sum_{t=1}^{T} \log P_\theta(y_t \mid x, y_{<t})$$
+
+**一个 Batch（N 条样本）：**
+
+$$\mathcal{L}_\text{SFT} = -\frac{1}{N}\sum_{i=1}^{N} \frac{1}{T_i}\sum_{t=1}^{T_i} \log P_\theta(y_t^{(i)} \mid x^{(i)}, y_{<t}^{(i)})$$
+
+```
+层层展开：
+
+Batch（N 条样本）
+  └── 样本 i（T_i 个 token）
+        └── 每个 token 算 -log P(y_t)
+
+总 Loss = 所有 token 的 -log P 取平均
+```
+
+##### Batch 梯度的本质：B 个样本"投票"
+
+每个样本定义一个关于 \(\theta\) 的函数（\(x_i, y_i\) 是常数，\(\theta\) 是变量）：
+
+$$\ell_i(\theta) = \ell(\theta;\, x_i, y_i)$$
+
+Batch Loss 是这些函数的平均：
+
+$$\mathcal{L}_\text{batch}(\theta) = \frac{1}{B}\sum_{i=1}^{B} \ell_i(\theta)$$
+
+对 Batch Loss 求梯度，由求导的线性性质：
+
+$$\nabla_\theta \mathcal{L}_\text{batch} = \frac{1}{B}\sum_{i=1}^{B} \nabla_\theta \ell_i(\theta)$$
+
+**关键理解：不同样本的梯度都是在同一个参数点 \(\theta_0\) 处求的，x_i 不同但求导变量是 \(\theta\)，所以完全可以平均。**
+
+```
+Batch 里 B 个样本，每个样本"建议"参数往某个方向走：
+
+样本1（猫）：θ₁ 应该 +0.3，θ₂ 应该 -0.1
+样本2（狗）：θ₁ 应该 +0.1，θ₂ 应该 +0.2
+样本3（车）：θ₁ 应该 +0.2，θ₂ 应该 -0.1
+
+平均：θ₁ 应该 +0.2，θ₂ 应该 ≈ 0（抵消）
+
+θ₂ 方向各样本意见相反 → 平均后接近 0 → 说明 θ₂ 不需要动 ✅
+θ₁ 方向大家都说增大 → 平均后还是正 → 说明 θ₁ 确实需要增大 ✅
+
+不同样本在"有共识"的维度叠加，在"有争议"的维度互相抵消
+→ 这就是我们想要的全局最优方向
+```
+
+**真正想优化的是期望损失（整个数据集）：**
+
+$$\mathcal{L}(\theta) = \mathbb{E}_{(x,y)\sim\mathcal{D}}\left[\ell(\theta; x, y)\right]$$
+
+数据集太大算不完，用 Batch 近似：
+
+$$\nabla_\theta \mathcal{L} \approx \frac{1}{B}\sum_{i=1}^{B} \nabla_\theta \ell(\theta; x_i, y_i)$$
+
+Batch 梯度是对"真实期望梯度"的蒙特卡洛估计，B 越大越准，但计算越慢。
+
+**最简单的例子（只有两个参数）：**
+
+```python
+# 两个样本定义两个 loss 函数
+ℓ₁(θ) = (θ₁ - 1)² + (θ₂ - 2)²   # 样本1（猫）
+ℓ₂(θ) = (θ₁ - 3)² + (θ₂ - 0)²   # 样本2（狗）
+
+# Batch loss = 取平均，这是一个普通的二元函数
+L(θ) = ½ [ℓ₁(θ) + ℓ₂(θ)]
+     = ½ [(θ₁-1)² + (θ₂-2)² + (θ₁-3)² + θ₂²]
+
+# 在 θ=(0,0) 处求梯度，就能算出该往哪个方向走
+```
+
+##### PyTorch 里实际发生的事
+
+```python
+for batch in dataloader:
+    # Step 1: 前向传播，算平均 loss（标量）
+    loss = model(batch).mean()      # L = (L1+L2+...+LB)/B
+
+    # Step 2: 反向传播，链式法则算出所有参数的偏导数
+    loss.backward()                 # ∂L/∂θ 存在 param.grad 里
+
+    # Step 3: 更新参数  θ ← θ - η∇L
+    optimizer.step()
+
+    # Step 4: 清零梯度（否则下次 backward 会累加）
+    optimizer.zero_grad()
+```
+
+##### SFT vs GRPO 对比
+
+| | SFT | GRPO |
+|--|-----|------|
+| **监督信号** | 正确答案的 token | 回答之间的相对 reward |
+| **每个 token 的目标** | 预测正确 → loss 小 | 好回答概率↑，差回答概率↓ |
+| **Loss 核心** | \(-\log P(y_t)\) | \(-\min(r\cdot A,\ \text{clip}(r)\cdot A)\) |
+| **参数更新方式** | `loss.backward()` + 梯度下降 | **完全相同** |
+
+参数更新方式两者完全相同，区别只在于 Loss 怎么算出来。
+
+---
+
+### 6.3 Actor/KL Loss（KL 散度损失）
+
+**本质：** 当前策略与参考模型（ref model，通常是 SFT 基础模型）之间的分布差距。
+
+$$\text{KL}(π_\theta \| π_\text{ref}) = \sum p_\theta(x) \log \frac{p_\theta(x)}{p_\text{ref}(x)}$$
+
+**直觉理解：**
+
+```
+KL=0   → 当前模型和参考模型输出完全一样（没有学习）
+KL 小  → 模型在参考模型基础上做了小幅调整 ✅
+KL 大  → 模型偏离参考模型很远（可能过拟合/奖励作弊）
+```
+
+**正常的变化趋势：**
+
+```
+训练初期：KL≈0（模型还没开始学）
+    ↓
+训练中期：KL 缓慢上升（模型在学习偏离参考策略）
+    ↓
+训练后期：KL 稳定在某个值 ✅
+
+⚠️ 危险：KL 持续快速增大 → 模型在"奖励作弊"，远离正常分布
+```
+
+---
+
+### 6.4 Actor/KL Coef（KL 系数）
+
+**本质：** KL 散度惩罚项的权重系数，控制"模型允许偏离参考模型多远"。
+
+```
+total_loss = pg_loss + kl_coef × kl_loss + entropy_loss
+
+kl_coef 大 → 强制模型贴近参考模型（保守）
+kl_coef 小 → 允许模型大幅偏离参考模型（激进）
+```
+
+**两种模式：**
+
+| 模式 | 说明 | 特点 |
+|------|------|------|
+| 固定 KL（`kl_coef=0.001` 不变） | 整个训练过程系数恒定 | 简单稳定，verl 默认 |
+| 自适应 KL | 根据实际 KL 值动态调整系数 | 更精细，但复杂 |
+
+---
+
+### 6.5 Actor/LR（学习率）
+
+**本质：** 每步参数更新的"步长大小"。
+
+```
+lr 大 → 每步更新幅度大，学得快但可能不稳定
+lr 小 → 每步更新幅度小，稳定但学得慢
+lr = 0 → 完全不更新参数，训练停滞
+```
+
+**常见 lr_scheduler 类型：**
+
+| 类型 | 行为 | 适用场景 |
+|------|------|---------|
+| `constant` | 全程固定 lr | GRPO 推荐，简单稳定 |
+| `cosine` | 从初始值余弦衰减到 0 | 容易提前归零，需注意 `total_training_steps` |
+| `warmup + cosine` | 先升后降 | 最常见，但末期 lr→0 后训练无意义 |
+
+**⚠️ 常见坑：** `total_training_steps` 设置过小 → lr 提前归零 → 后续训练无参数更新。
+
+```yaml
+# 检查配置
+actor:
+  optim:
+    lr: 1e-6
+    lr_scheduler_type: cosine
+    total_training_steps: 1000   # ← 是否设置太小？
+    warmup_steps: 100
+```
+
+> **GRPO 建议用固定 lr：** GRPO 内置了 KL 约束、Clip 机制、reward 归一化等自适应机制，已经起到调节作用，不需要 lr 动态衰减。
+
+---
+
+### 6.6 Advantages（优势值）
 
 **直觉理解：** GRPO 对同一个问题生成 N 个回答，用相对排名而非绝对分数来决定优化方向。
 
@@ -196,7 +517,7 @@ advantages:
 
 ---
 
-### 6.3 Entropy（熵）
+### 6.7 Entropy（熵）
 
 **熵 = 模型输出的"不确定程度"**
 
@@ -239,7 +560,7 @@ H ≈ 0.80              # ✅ 理想状态
 
 ---
 
-### 6.4 Entropy Loss（熵损失）
+### 6.8 Entropy Loss（熵损失）
 
 **熵 vs 熵 Loss 的区别：**
 
@@ -281,7 +602,7 @@ total_loss = pg_loss        ← 策略梯度损失（让好回答概率↑）
 
 ---
 
-### 6.5 Grad Norm（梯度范数）
+### 6.9 Grad Norm（梯度范数）
 
 **梯度范数 = 所有参数梯度的"总更新力度"**
 
@@ -309,7 +630,57 @@ max_grad_norm = 1.0  # 设置上限
 
 ---
 
-### 6.6 GRPO 一步训练完整流程
+### 6.10 PG Clipfrac（策略梯度裁剪比例）
+
+**本质：** 每一步中，有多少比例的 token 的概率比（新策略/旧策略）超出了 clip 范围 `[1-ε, 1+ε]`。
+
+```
+GRPO/PPO 的 clip 机制：
+
+  ratio = π_new(a|s) / π_old(a|s)   ← 新旧策略的概率比
+
+  loss = -min(
+    ratio × A,                       ← 原始策略梯度
+    clip(ratio, 1-ε, 1+ε) × A        ← 被截断的版本
+  )
+
+pg_clipfrac = 被 clip 的 token 比例
+```
+
+**怎么看：**
+
+| 值 | 含义 | 状态 |
+|---|------|------|
+| 0.1 ~ 0.3 | 适度更新，有部分被 clip | ✅ 正常 |
+| ≈ 0 | 几乎没有更新，策略原地不动 | ⚠️ 训练停滞 |
+| > 0.5 | 大量被 clip，更新太激进 | ⚠️ lr 可能过大 |
+
+> `pg_clipfrac_lower`：概率比低于 `1-ε` 的比例，即模型输出概率相比上一步大幅下降的 token。偶尔出现尖峰是正常的，持续非零说明某些回答被强烈抑制。
+
+---
+
+### 6.11 内存指标（max_memory_allocated / max_memory_reserved）
+
+**本质：** GPU 显存使用情况。
+
+| 指标 | 含义 |
+|------|------|
+| `max_memory_allocated` | 实际分配给张量的显存峰值 |
+| `max_memory_reserved` | PyTorch 向 CUDA 申请的总显存（含缓存池） |
+
+```
+reserved ≥ allocated
+
+reserved - allocated = PyTorch 缓存池（预留但未被占用）
+```
+
+**⚠️ 异常信号：**
+- 内存在某个 step 后突然下降 → 可能是 batch size 变化、序列截断或 OOM 导致的异常
+- 内存持续上涨直到 OOM → 存在显存泄漏或 KV cache 过大
+
+---
+
+### 6.12 GRPO 一步训练完整流程
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -340,22 +711,33 @@ max_grad_norm = 1.0  # 设置上限
 
 ---
 
-### 6.7 指标总览与记忆口诀
+### 6.13 指标总览与记忆口诀
 
-| 指标 | 正常范围 | ⚠️ 危险信号 |
-|------|---------|------------|
-| `advantages/mean` | 非零，有正有负 | ≈0 → 训练停滞 |
-| `entropy` | 0.5 ~ 1.5 | →0 坍塌 / 一直高不降 |
-| `entropy_loss` | 小负值 | 绝对值持续增大 |
-| `grad_norm` | 1.0 ~ 5.0 | 持续 >10 → 不稳定 |
-| `pg_clipfrac` | 0.1 ~ 0.3 | ≈0 → 参数不更新 |
+| 指标 | 前缀 | 正常范围 | ⚠️ 危险信号 |
+|------|------|---------|------------|
+| `loss` | actor/ | 持续下降，最终稳定 | 不降或剧烈震荡 |
+| `kl_loss` | actor/ | 缓慢上升后稳定 | 持续快速增大 |
+| `kl_coef` | actor/ | 固定值（如 0.001） | — |
+| `lr` | actor/ | 固定或按预期衰减 | 提前归零 |
+| `advantages/mean` | critic/ | 非零，有正有负 | ≈0 → 训练停滞 |
+| `entropy` | actor/ | 0.5 ~ 1.5 | →0 坍塌 / 一直高不降 |
+| `entropy_loss` | actor/ | 小负值 | 绝对值持续增大 |
+| `grad_norm` | actor/ | 1.0 ~ 5.0 | 持续 >10 → 不稳定 |
+| `pg_clipfrac` | actor/ | 0.1 ~ 0.3 | ≈0 → 参数不更新 |
+| `pg_clipfrac_lower` | actor/ | 接近 0 | 频繁尖峰 → 回答被强烈抑制 |
+| `max_memory_allocated` | — | 稳定 | 突降（异常）/ 持续上涨（泄漏） |
 
 **记忆口诀：**
 
 ```
-entropy      = 体温计（量体温，观测状态）
-entropy_loss = 退烧药（主动干预训练方向）
+loss         = 成绩单（下降说明在学习，但要配合 reward 看）
+kl_loss      = 离家距离（别跑太远，偏离参考模型）
+kl_coef      = 皮带松紧（控制允许偏离多远）
+lr           = 步伐速度（=0 则停走了）
+advantages   = 相对排名（=0 则不知道往哪走）
+entropy      = 体温计（量体温，观测多样性状态）
+entropy_loss = 退烧药（主动干预，防止输出单一）
 entropy_coef = 药量  （超参数，控制剂量）
-grad_norm    = 步伐大小（太大会摔跤，太小走不动）
-advantages   = 相对排名（为0则不知道往哪走）
+grad_norm    = 步伐力度（太大会摔跤，太小走不动）
+pg_clipfrac  = 刹车使用率（太低说明刹车失效/没在动）
 ```

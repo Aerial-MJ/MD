@@ -1,5 +1,7 @@
 ## MoE
 
+> 关联笔记：MoE 与 Dense FFN 的对比、以及 MiniMind 中 Dense FFN 的具体实现见 [MiniMind从0到1构建大模型 · 3.4 FFN](../神经网络代码/MiniMind从0到1构建大模型.md#34-ffn)。
+
 **混合专家模型** (Mixed Expert Models，简称 MoEs) ，最早是随着 Mixtral 8x7B 的推出而逐渐引起人们的广泛关注。 最近随着DeepSeek的爆火，MoE又进一步引起大家的关注。在本文中，我们将深入探讨 MoEs 的核心组件、训练方法，以及在推理过程中需要考量的各种因素。
 
 ## MoE架构模型

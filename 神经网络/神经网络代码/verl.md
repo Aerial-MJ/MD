@@ -1,5 +1,7 @@
 # Verl
 
+> 关联笔记：verl 这类框架所实现的 PPO/GRPO rollout-reward-update 流程，可对照 [MiniMind从0到1构建大模型 · 4.3 强化学习](MiniMind从0到1构建大模型.md#43-强化学习) 中从零手写的简化版实现（含 Agentic RL 多轮工具调用 rollout）。
+
 ## 一、什么是 **verl**
 
 **verl（Volcano Engine Reinforcement Learning）** 是字节跳动 Seed 团队推出的一个 **强化学习训练框架**，主要用于大型语言模型（LLMs）的强化学习（尤其是 RLHF，即 “人类反馈强化学习”）和 agent 训练任务。它的目标是：

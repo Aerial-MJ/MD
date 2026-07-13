@@ -1,5 +1,7 @@
 # Transformer 向量与参数详解
 
+> 关联笔记：本文的参数命名可对照 [MiniMind从0到1构建大模型 · 3 模型结构](../神经网络代码/MiniMind从0到1构建大模型.md#3模型结构) 中的实际代码实现（GQA、RoPE、SwiGLU FFN）。
+
 ---
 
 ## 一、两大类划分
@@ -243,19 +245,27 @@ PE ─────────────────────── Pos Emb
   ↓  [相加]
   x                                           [seq_len, d_model]
   ↓
-LayerNorm (γ, β)
+  ┌──────────────────────── Transformer Block × N层 ─────────────────────────┐
+  │                                                                           │
+  │  ① LayerNorm (γ, β)          ← Pre-LN：先 Norm 再 Attention              │
+  │       ↓                                                                   │
+  │  W_Q, W_K, W_V ────────── Attention权重   [d_model, d_k/v]               │
+  │       ↓  [attention计算]                                                  │
+  │  W_O ──────────────────── Output投影      [d_v×heads, d_model]            │
+  │       ↓                                                                   │
+  │  x = x + Attn_output        ← 残差（绕过了上面的 LN，直接加回原始 x）     │
+  │       ↓                                                                   │
+  │  ② LayerNorm (γ, β)          ← Pre-LN：先 Norm 再 FFN                    │
+  │       ↓                                                                   │
+  │  W1/gate_proj ─────────── FFN升维         [d_model, d_ffn]                │
+  │  W2/down_proj ─────────── FFN降维         [d_ffn, d_model]                │
+  │       ↓                                                                   │
+  │  x = x + FFN_output         ← 残差（绕过了上面的 LN，直接加回）           │
+  │                                                                           │
+  └───────────────────────────────────────────────────────────────────────────┘
   ↓
-W_Q, W_K, W_V ─────────── Attention权重      [d_model, d_k/v]
-  ↓  [attention计算]
-W_O ───────────────────── Output投影          [d_v×heads, d_model]
-  ↓  [残差+LayerNorm]
-W1/gate_proj ──────────── FFN升维             [d_model, d_ffn]
-W2/down_proj ──────────── FFN降维             [d_ffn, d_model]
-  ↓  [残差]
-  × N层
-  ↓
-LayerNorm (γ, β)
-  ↓
+Final LayerNorm (γ, β)     ← 单独再 Norm 一次！因为最后的 x 没被 Norm 过
+  ↓                           （Post-LN 没有这步，Pre-LN 必须有）
 lm_head ────────────────── LM Head            [d_model, vocab]
   ↓
 logits                                        [vocab_size]
@@ -270,3 +280,200 @@ Loss（标量）
 ```
 
 **一句话：** token → embedding → N层(attention+FFN) → lm_head → logits → softmax → 概率 → -log → loss → backward → 更新所有权重矩阵。
+
+---
+
+## 八、Decoder 的三种变体（为什么你看到的结构不一样）
+
+```
+Transformer 有三种主流架构，Decoder 的结构各不相同：
+
+┌─────────────────────┬──────────────────────────┬──────────────────────────────────┐
+│ 架构                │ 代表模型                  │ Decoder Block 结构               │
+├─────────────────────┼──────────────────────────┼──────────────────────────────────┤
+│ Encoder-Decoder     │ 原版Transformer、T5、BART │ Masked Self-Attn                 │
+│ （原始论文）        │                           │ → Cross-Attn（多了这层！）       │
+│                     │                           │ → FFN                            │
+├─────────────────────┼──────────────────────────┼──────────────────────────────────┤
+│ Decoder-Only        │ GPT、LLaMA、Qwen          │ Masked Self-Attn                 │
+│ （本笔记描述的）    │                           │ → FFN（无 Cross-Attn）           │
+├─────────────────────┼──────────────────────────┼──────────────────────────────────┤
+│ Encoder-Only        │ BERT                      │ （双向）Self-Attn → FFN          │
+└─────────────────────┴──────────────────────────┴──────────────────────────────────┘
+```
+
+### 原始论文 Decoder（3个子层，Post-LN）
+
+```
+输入（目标序列，如翻译的目标语言）
+  ↓
+① Masked Self-Attention   ← 只看自己和之前的 token（因果遮掩）
+  x = LayerNorm(x + Attn(x))    ← Post-LN：残差之后才 Norm
+  ↓
+② Cross-Attention          ← Q 来自 decoder 当前层，K/V 来自 Encoder 的输出
+  x = LayerNorm(x + CrossAttn(x, enc_output))
+  ↓
+③ FFN
+  x = LayerNorm(x + FFN(x))
+  ↓
+输出
+
+关键：Cross-Attention 是为了"看"Encoder 端的源语言信息
+     比如翻译任务：Encoder 处理英文，Decoder 生成中文时通过 Cross-Attn 参考英文
+```
+
+### 现代 LLM Decoder（2个子层，Pre-LN，本笔记用的）
+
+```
+输入（前面已有的 token）
+  ↓
+① Masked Self-Attention   ← 因果遮掩，只看过去
+  x = x + Attn(LayerNorm(x))    ← Pre-LN：先 Norm 再 Attention，残差绕过 LN
+  ↓
+② FFN
+  x = x + FFN(LayerNorm(x))     ← 同上
+  ↓
+输出
+
+关键：没有 Cross-Attention！因为根本没有 Encoder
+     整个模型只有 Decoder，自己生成自己
+```
+
+### Post-LN vs Pre-LN 对比
+
+```
+Post-LN（原始论文）：
+  x → Attention → 残差 → LayerNorm → FFN → 残差 → LayerNorm → 输出
+                                ↑LN在后                ↑LN在后
+
+Pre-LN（现代LLM）：
+  x → LayerNorm → Attention → 残差 → LayerNorm → FFN → 残差 → 输出
+      ↑LN在前                         ↑LN在前
+
+区别：
+  LN 总共出现两次，只是挪了位置，数量相同
+  Pre-LN 训练更稳定，不容易梯度爆炸，所以现代 LLM 普遍采用
+  Pre-LN 因为残差绕过了 LN，所以 N 层结束后需要额外一个 Final LayerNorm
+```
+
+---
+
+## 九、Multi-Head Attention（MHA）详解
+
+### 9.1 核心直觉
+
+```
+单头 Attention：一个人同时只能关注一件事
+Multi-Head：分出 h 个"头"，每个头独立关注不同的信息，最后把结果拼起来
+
+比如：
+  头1 可能在关注"语法依存关系"
+  头2 可能在关注"指代关系"（它/他/她 指的是谁）
+  头3 可能在关注"局部相邻词"
+  ...
+每个头学到的模式不同，最终融合更丰富
+```
+
+### 9.2 完整计算流程
+
+```
+输入 X: [seq_len, d_model]     例如 [10, 512]
+超参数：头数 h = 8，每头维度 d_k = d_model / h = 64
+
+━━━ 概念版（最直观，h 个独立矩阵）━━━
+
+对每一个头 i = 1, 2, ..., h：
+  Q_i = X @ W_Q_i    W_Q_i: [d_model, d_k]  → Q_i: [seq_len, d_k]
+  K_i = X @ W_K_i    W_K_i: [d_model, d_k]  → K_i: [seq_len, d_k]
+  V_i = X @ W_V_i    W_V_i: [d_model, d_v]  → V_i: [seq_len, d_v]
+
+  scores_i = Q_i @ K_i^T / sqrt(d_k)        [seq_len, seq_len]
+  attn_i   = softmax(scores_i)               [seq_len, seq_len]
+  head_i   = attn_i @ V_i                    [seq_len, d_v]
+
+把所有头拼起来：
+  concat = Concat(head_1, ..., head_h)       [seq_len, h*d_v]  = [seq_len, d_model]
+
+最后投影（融合多头信息）：
+  output = concat @ W_O                      [seq_len, d_model]
+  W_O: [d_model, d_model]
+```
+
+### 9.3 为什么你看到"不同版本"——两种实现方式
+
+**版本A（概念版，h 个独立矩阵，直观但低效）**
+
+```python
+head_outputs = []
+for i in range(h):
+    Q = X @ W_Q[i]   # W_Q[i]: [d_model, d_k]
+    K = X @ W_K[i]
+    V = X @ W_V[i]
+    scores = Q @ K.T / sqrt(d_k)
+    attn = softmax(scores)
+    head_outputs.append(attn @ V)
+output = concat(head_outputs) @ W_O
+```
+
+**版本B（工程实现版，合并大矩阵 + reshape，高效）**
+
+```python
+# 用一个大矩阵一次算出所有头的 Q/K/V
+Q = X @ W_Q   # W_Q: [d_model, h*d_k]，等价于把 h 个 W_Q_i 横向拼接
+K = X @ W_K
+V = X @ W_V
+
+# reshape 成多头形式（分拆出每个头）
+Q = Q.view(seq_len, h, d_k).transpose(1, 2)  # [h, seq_len, d_k]
+K = K.view(seq_len, h, d_k).transpose(1, 2)
+V = V.view(seq_len, h, d_v).transpose(1, 2)
+
+# 批量并行计算所有头的 attention
+scores = Q @ K.transpose(-2, -1) / sqrt(d_k)  # [h, seq_len, seq_len]
+attn   = softmax(scores)                        # [h, seq_len, seq_len]
+out    = attn @ V                               # [h, seq_len, d_v]
+
+# 拼回来
+out    = out.transpose(1, 2).contiguous().view(seq_len, h * d_v)  # [seq_len, d_model]
+output = out @ W_O                              # [seq_len, d_model]
+```
+
+```
+两个版本数学上完全等价！
+版本B只是工程优化：一次大矩阵乘法 + reshape，比 h 次循环快得多
+实际代码（PyTorch、HuggingFace）用的都是版本B
+```
+
+### 9.4 几个关键细节
+
+```
+问题                      答案
+─────────────────────────────────────────────────────────────────
+d_k 怎么定？              通常 d_k = d_model / h
+                          这样 h 个头 concat 后刚好还是 d_model 维
+
+为什么除以 sqrt(d_k)？    d_k 越大，点积结果的方差越大
+                          除以 sqrt(d_k) 把方差压回1，防止 softmax 梯度消失
+
+W_O 的作用？              把 concat 后的 [h*d_v] 维向量投影回 d_model
+                          让各个头的信息混合融合，而不是简单拼接
+
+Cross-Attention 怎么变？  Q 来自 decoder 当前层的输入
+                          K、V 来自 encoder 的输出
+                          其余计算完全一样
+```
+
+### 9.5 一张图理清 MHA
+
+```
+                ┌──── 头1: W_Q1,W_K1,W_V1 → Attn → head_1 ────┐
+                │                                                │
+X ──────────────┼──── 头2: W_Q2,W_K2,W_V2 → Attn → head_2 ────┼── Concat ── W_O ── 输出
+                │                                                │
+                └──── 头h: W_Qh,W_Kh,W_Vh → Attn → head_h ────┘
+
+工程实现：
+  W_Q = [W_Q1 | W_Q2 | ... | W_Qh]  拼成 [d_model, h*d_k] 的大矩阵
+  一次矩阵乘法得到所有头的 Q，再 reshape 成 [h, seq_len, d_k]
+  K、V 同理
+```

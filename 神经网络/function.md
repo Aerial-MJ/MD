@@ -2126,7 +2126,7 @@ print(type(arr))
 
 #### 1. 生成随机数
 
-- `numpy.random.rand(d0, d1, ...)`：生成 \([0, 1)\) 区间的均匀分布随机数，返回形状为 `(d0, d1, ...)` 的数组。
+- `numpy.random.rand(d0, d1, ...)`：生成 $[0, 1)$ 区间的均匀分布随机数，返回形状为 `(d0, d1, ...)` 的数组。
 - `numpy.random.randn(d0, d1, ...)`：生成标准正态分布的随机数，返回形状为 `(d0, d1, ...)` 的数组。
 - `numpy.random.randint(low, high=None, size=None, dtype=int)`：生成指定范围内的随机整数。
 

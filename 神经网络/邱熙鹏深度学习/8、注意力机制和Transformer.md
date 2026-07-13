@@ -2,7 +2,7 @@
 
 > 关联笔记：注意力机制在真实大模型中的完整工程实现（GQA、RoPE、KV Cache）见 [MiniMind从0到1构建大模型 · 3.2 注意力机制](../神经网络代码/MiniMind从0到1构建大模型.md#32-注意力机制)。
 
-![image-20240928172331932](C:/Users/19409/AppData/Roaming/Typora/typora-user-images/image-20240928172331932.png)
+*（原图 image-20240928172331932 未随笔记迁移，链接已失效）*
 
 自下而上：不用主动关注，自带显著特征，只要我们的输入信息刺激性足够强，就能被关注到，而且对周围信息有抑制效应
 
@@ -37,7 +37,7 @@
 
 **键值对注意力  key-value pair attention**
 
-![image-20240928180427004](C:/Users/19409/AppData/Roaming/Typora/typora-user-images/image-20240928180427004.png)
+*（原图 image-20240928180427004 未随笔记迁移，链接已失效）*
 
 **多头注意力  multi-head attention**
 

@@ -196,7 +196,7 @@ int main()
 4. 用 unsigned long long 存储，溢出相当于对 2^64 取模，省略了手动运算
 5. 该方法的好处是，可以利用前缀哈希直接求出子串哈希（减去高位）
 
-![image-20230401160355411](C:/Users/19409/AppData/Roaming/Typora/typora-user-images/image-20230401160355411.png)
+![image-20230401160355411](../../Image/image-20230401160355411.png)
 
 ## Pair重写hash函数并创建unordered_map
 

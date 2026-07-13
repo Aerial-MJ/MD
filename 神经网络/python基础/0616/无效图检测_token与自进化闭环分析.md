@@ -449,7 +449,7 @@ messages → apply_chat_template → 文本 prompt
 | 原因 | 说明 |
 |------|------|
 | **速度** | 本地批量推理，vLLM 内部做 continuous batching，比逐条 HTTP 快 10~30x |
-| **一致性** | 和训练用同一个 [apply_chat_template](file:///home/hadoop-grocery-rc/dolphinfs_hdd_hadoop-grocery-rc/yxfk/work_dir/chenjiarui/work/IG/SFT/LlamaFactory/eval/eval_ig_vllm.py#87#34)，确保 prompt 格式完全一致 |
+| **一致性** | 和训练用同一个 `apply_chat_template`（定义于 `eval_ig_vllm.py`），确保 prompt 格式完全一致 |
 | **不需要服务** | 不用先启动 vLLM server，加载模型就能跑 |
 | **批量处理** | 一批 64 条并行推理，API 模式要自己管并发 |
 

@@ -1,6 +1,6 @@
 [NIPS 24 | FinCon: 基于LLM的多智能体交易及组合管理框架 - 知乎](https://zhuanlan.zhihu.com/p/12522270570)
 
-[论文地址](C:\Users\19409\Desktop\论文\FinCon.pdf)
+论文地址：FinCon.pdf（本地路径已失效，可通过上方知乎链接或搜索 "FinCon NeurIPS 2024" 找到原文）
 
 FINCON 通过合成多智能体协作机制对信息进行高质量提炼，并结合其双层风险控制设计，使其在竞争中处于领先地位。
 

@@ -1,6 +1,6 @@
 # 从 0 到 1 构建大模型（以 MiniMind 为例）
 
-> 本文以 [MiniMind](https://github.com/jingyaogong/minimind) 为实践项目，完整走一遍大语言模型的构建流程：训练 Tokenizer → 设计模型结构 → 预训练 → 有监督微调 → 强化学习。
+> 本文以 [MiniMind](https://github.com/jingyaogong/minimind) 为实践项目，完整走一遍大语言模型的构建流程：训练 Tokenizer → 设计模型结构 → 数据处理 → 预训练 → 有监督微调 → 强化学习（PPO/GRPO/DPO）→ 训练工程 → 推理部署，是一份覆盖原理与工程实践的完整笔记。
 >
 > 关联笔记（以下是总览，各小节标题下还有更精确的对应章节链接，建议从正文直接跳转）：
 > - 模型结构中的参数命名与形状细节 → [Transformer向量与参数详解](../深度学习/Transformer向量与参数详解.md)
@@ -8,8 +8,8 @@
 > - 激活函数（SiLU/GELU 等）的选择依据 → [激活函数和损失函数](../深度学习/激活函数和损失函数.md)
 > - MoE 架构的详细原理 → [Moe](../深度学习/Moe.md)
 > - PPO / GRPO 公式的另一套推导与对照表 → [GRPO与PPO算法详解](../深度学习/GRPO与PPO算法详解.md)
-> - RLHF / 对齐的整体流程 → [对齐](../深度学习/对齐.md)
-> - 工业级 RL 训练框架 verl 与本文 4.3 节 Agentic RL 的关系 → [verl](verl.md)
+> - RLHF / 对齐（SFT → RM → DPO/RLHF）的整体流程 → [对齐](../深度学习/对齐.md)
+> - 工业级 RL 训练框架 verl 与本文 4.3 节 Agentic RL、4.5 节训练工程的关系 → [verl](verl.md)
 
 ## 目录
 
@@ -17,6 +17,8 @@
 2. [分词器（Tokenizer）](#2-分词器tokenizer)
 3. [模型结构](#3-模型结构)
 4. [训练方式](#4-训练方式)
+   - 4.1 [预训练](#41-预训练)　4.2 [有监督微调（SFT）](#42-有监督微调sft)　4.3 [强化学习](#43-强化学习)（含 4.3.3 [DPO](#433-dpo跳过显式奖励模型和在线-rollout)）
+   - 4.4 [数据处理](#44-数据处理从原始语料到训练样本)　4.5 [训练工程细节](#45-训练工程细节)　4.6 [推理](#46-推理)
 
 ---
 
@@ -1602,7 +1604,92 @@ for _ in range(ppo_epochs):
 policy_old.load_state_dict(policy.state_dict())
 ```
 
-#### 4.3.3 从统一的视角看 policy-gradient 算法
+#### 4.3.3 DPO：跳过显式奖励模型和在线 rollout
+
+> 参见：[对齐 · LLM对齐](../深度学习/对齐.md#llm对齐)（SFT → 奖励模型 → RLHF 的传统三段式流程，DPO 正是对后两步的简化）。
+
+前面的 REINFORCE / PPO / GRPO 都是 **on-policy** 方法：需要让当前模型在线生成回答（rollout），再用奖励函数或奖励模型打分。这带来两个工程成本：
+
+1. 需要一个独立训练好的 Reward Model（或规则验证器）在训练循环中实时打分；
+2. 需要维护 rollout 引擎，不断用最新策略生成新样本，训练与推理耦合。
+
+**DPO**（Direct Preference Optimization，直接偏好优化）绕开了这两点：它不需要显式奖励模型，也不需要在线 rollout，直接在一份离线的**偏好数据**（pairwise preference data）上做**监督学习**，因此属于 **off-policy** 方法。
+
+**数据形式**
+
+DPO 的训练数据是三元组 $(x, y_w, y_l)$：给定 prompt $x$，$y_w$（winner）是标注为更优的回答，$y_l$（loser）是标注为更差的回答：
+
+```json
+{
+  "prompt": "如何看待熬夜？",
+  "chosen": "长期熬夜会打乱昼夜节律，建议尽量保证规律作息……",
+  "rejected": "熬夜没什么大不了的，年轻人熬一下没关系。"
+}
+```
+
+这类偏好对可以来自人工标注，也可以由更强模型（或规则/RM 打分）自动构造，不需要在训练过程中反复调用模型生成。
+
+**从 RLHF 目标推导 DPO Loss**
+
+标准 RLHF 的优化目标是在 KL 约束下最大化奖励模型给出的期望奖励：
+
+$$
+\max_{\pi_\theta} \ \mathbb{E}_{x,\,y\sim\pi_\theta}\big[r(x,y)\big] - \beta\, \text{KL}\big(\pi_\theta(y|x) \,\|\, \pi_{ref}(y|x)\big)
+$$
+
+这个目标存在闭式解，最优策略满足：
+
+$$
+\pi^*(y|x) = \frac{1}{Z(x)}\, \pi_{ref}(y|x)\, \exp\!\left(\frac{1}{\beta} r(x,y)\right)
+$$
+
+反解出隐式奖励 $r(x,y) = \beta \log \dfrac{\pi^*(y|x)}{\pi_{ref}(y|x)} + \beta \log Z(x)$，代入 Bradley-Terry 偏好模型（$y_w$ 优于 $y_l$ 的概率由两者奖励差的 sigmoid 给出，配分函数 $Z(x)$ 在做差时相互抵消），得到只用策略模型本身表示的 DPO Loss：
+
+$$
+\mathcal{L}_{DPO}(\theta) = -\log \sigma\left(\beta \log \frac{\pi_\theta(y_w|x)}{\pi_{ref}(y_w|x)} - \beta \log \frac{\pi_\theta(y_l|x)}{\pi_{ref}(y_l|x)}\right)
+$$
+
+**这个公式在做什么**
+
+- 两个 $\log$ 比值分别衡量策略相对参考模型，在 chosen 回答和 rejected 回答上"变得更喜欢还是更不喜欢"；
+- 训练目标是拉大这两者的差距：让 $\pi_\theta$ 相对 $\pi_{ref}$ 更偏好 $y_w$、更不偏好 $y_l$；
+- $\beta$ 控制约束强度，等价于 RLHF 目标里的 KL 系数：$\beta$ 越大，策略被约束得越接近参考模型。
+
+**代码实现**
+
+```python
+def dpo_loss(policy, ref_model, chosen_ids, rejected_ids, beta=0.1):
+    # 分别计算 policy 和 ref model 对 chosen / rejected 回答的 token 级 log-prob 之和
+    policy_chosen_logps = sequence_logps(policy, chosen_ids)
+    policy_rejected_logps = sequence_logps(policy, rejected_ids)
+    with torch.no_grad():
+        ref_chosen_logps = sequence_logps(ref_model, chosen_ids)
+        ref_rejected_logps = sequence_logps(ref_model, rejected_ids)
+
+    # 隐式奖励：策略相对参考模型的 log-ratio
+    chosen_reward = beta * (policy_chosen_logps - ref_chosen_logps)
+    rejected_reward = beta * (policy_rejected_logps - ref_rejected_logps)
+
+    loss = -F.logsigmoid(chosen_reward - rejected_reward).mean()
+    return loss
+```
+
+`sequence_logps` 与 SFT 中计算 loss 的前向过程几乎一致，区别只是取 `log_softmax` 后按 `assistant` 部分的 token 求和而不是取负平均；这里不需要 `ignore_index=-100` 之外的特殊处理，因为 DPO 只需要一个标量的序列级 log-prob。
+
+**DPO 与 PPO/GRPO 的对比**
+
+| 维度 | PPO / GRPO（on-policy） | DPO（off-policy） |
+|------|--------------------------|---------------------|
+| 数据来源 | 训练时用当前策略在线 rollout | 离线预先收集的偏好对 $(x, y_w, y_l)$ |
+| 是否需要奖励模型 | 需要（或规则验证器） | 不需要，奖励被隐式吸收进 policy/ref 的 log-ratio |
+| 需要维护的模型 | actor（+ PPO 的 critic）+ reference | policy + reference（无需 critic，无需单独 RM） |
+| 训练稳定性 | 需要 clip、KL 等多种稳定化机制 | 本质是二分类交叉熵，训练更稳定、超参更少 |
+| 能否用于多轮工具调用等 Agentic 任务 | 天然支持在线多轮 rollout（如 4.3.5 节） | 较难：偏好对通常针对单轮最终回答，缺少中间过程的 in-the-loop 反馈 |
+| 样本利用率 | 每次 rollout 的样本通常只用有限几轮就丢弃 | 静态数据集可反复多 epoch 训练，类似普通 SFT |
+
+一种常见的实践路径是：**SFT → DPO 快速对齐一版偏好 → 如果需要更强的可验证任务能力（数学、代码、工具调用），再叠加 PPO/GRPO 等 on-policy RL**。DPO 用更低的工程成本解决"整体风格与人类偏好对齐"的问题，PPO/GRPO 则更适合处理有明确 reward 信号、需要模型自己探索的任务。
+
+#### 4.3.4 从统一的视角看 policy-gradient 算法
 
 > 参见：[GRPO与PPO算法详解 · 六、GRPO 为什么能省掉 Critic 网络？](../深度学习/GRPO与PPO算法详解.md#六grpo-为什么能省掉-critic-网络)、[七、KL 散度惩罚项详解](../深度学习/GRPO与PPO算法详解.md#七kl-散度惩罚项详解)。
 
@@ -1644,7 +1731,7 @@ policy_old.load_state_dict(policy.state_dict())
 | CFPO | group rollout | group-relative | 以 divergence 构造更新 | quadratic penalty 替代 clipping | 依具体实现 | 可配置 |
 | RGRA | group rollout | group-relative | 删除 importance ratio | 无 ratio / clipping | 依具体实现 | 可配置 |
 
-#### 4.3.4 Agentic RL 实践
+#### 4.3.5 Agentic RL 实践
 
 > 参见：[verl · 六、GRPO 训练核心指标详解](verl.md#六grpo-训练核心指标详解)（工业框架中同样的 rollout/advantage/ratio 指标在真实训练日志中长什么样）。
 
@@ -1845,7 +1932,7 @@ for prompts in dataloader:
     rollout_engine.update_policy(policy)
 ```
 
-#### 4.3.5 Reward 曲线与 Case 分析
+#### 4.3.6 Reward 曲线与 Case 分析
 
 下表对比同一批提示词在 pretrain / SFT / RL 三个阶段之后的模型输出，可以直观看到强化学习阶段带来的变化：
 
@@ -1862,12 +1949,305 @@ for prompts in dataloader:
 
 ---
 
+### 4.4 数据处理：从原始语料到训练样本
+
+前面 4.1～4.3 节的"数据集"小节只展示了最终喂给模型的 JSONL 格式和统计数字，本节补齐中间被跳过的部分：数据从哪里来、怎么清洗、以及三个阶段的数据如何逐步演化。
+
+#### 4.4.1 数据来源
+
+MiniMind 三阶段数据的来源和用途差异很大：
+
+| 阶段 | 主要来源 | 特点 |
+|------|---------|------|
+| 预训练 | 网页百科（如中文维基）、新闻资讯、开源书籍、代码仓库等通用语料聚合数据集 | 规模大（846 万条/2.2B token）、无标注、质量参差不齐 |
+| SFT | 开源指令数据集（如 Alpaca、BelleGroup 系列的中文改写版）、人工/模型合成对话、工具调用轨迹 | 规模中等（511 万条）、需要结构化为 `role/content` 多轮格式 |
+| RL（Agentic） | 数学/代码等可自动验证任务的题库（如 GSM8K 类型问题）、自定义工具调用场景 | 规模较小，但每条样本都需要一个可编程验证的 `gt`（ground truth） |
+
+三个阶段的数据在"规模"和"标注精度"之间呈反向关系：预训练数据量最大但几乎不需要标注，RL 数据量最小但标注/验证要求最高。
+
+#### 4.4.2 数据清洗
+
+原始语料直接喂给 tokenizer 训练或模型训练之前，通常需要经过几类基础清洗步骤：
+
+| 清洗步骤 | 目的 | 常见做法 |
+|---------|------|---------|
+| 去重 | 避免高频重复片段让模型死记硬背、浪费训练算力 | 精确哈希去重 + MinHash/SimHash 近似去重 |
+| 长度过滤 | 剔除过短（信息量不足）或异常过长（可能是乱码/表格转储）的样本 | 按字符数或 token 数设置上下限阈值 |
+| 质量过滤 | 剔除乱码、广告、机器翻译痕迹明显、格式错乱的文本 | 规则过滤（特殊符号占比、中英文混杂度）+ 简单分类器打分 |
+| 敏感内容过滤 | 减少违法违规、隐私泄露等内容进入训练集 | 关键词/正则规则 + 分类模型联合过滤 |
+| 格式规整 | 统一编码、换行符、全角半角等 | 归一化脚本批量处理 |
+
+SFT 阶段还需要额外的**对话质量清洗**：过滤掉回答过短、拒绝作答、前后矛盾、工具调用参数不合法的样本；工具调用类样本还需要校验 `tool_calls` 的 JSON 格式和参数是否能被真实执行。
+
+#### 4.4.3 从预训练数据到 SFT 数据：格式演化
+
+预训练阶段每条样本只有裸文本 `text` 字段（见 4.1.3），SFT 阶段需要把无结构文本包装成结构化多轮对话（见 4.2.3）。这一步通常由以下方式构造：
+
+1. **人工/众包标注**：标注员直接撰写高质量的问答对；
+2. **模型蒸馏**：用更强的模型（如 GPT-4 级别）根据种子问题生成回答，再做质量筛选；
+3. **规则改写**：把百科条目、FAQ 等结构化知识改写成"提问-回答"的形式；
+4. **工具调用轨迹合成**：为常见工具（计算器、天气、汇率查询等）编写模板问题，程序化拼出 `tool_calls`/`tool_response` 的完整轨迹，再人工或规则校验正确性。
+
+#### 4.4.4 RL 数据的特殊要求：可验证性
+
+强化学习阶段的数据与前两阶段有本质区别：预训练/SFT 数据只需要"看起来正确"，而 RL 数据的 `gt` 字段必须能被程序化验证（见 4.3.5 的 `AgentRLDataset` 格式）。这意味着 RL 数据的构造需要额外满足：
+
+- **确定性**：同一个问题只能有一个（或一组等价的）标准答案，避免规则验证器给出模糊或矛盾的奖励；
+- **可执行性**：如果任务涉及工具调用，需要提前准备好可以真实执行（或可靠 mock）的工具环境；
+- **难度分层**：过于简单的题目会让一组 $G$ 条 rollout 全部答对（reward 方差为 0，GRPO advantage 退化，见 4.3.3 节），过难的题目则可能全部答错，两种情况都不能提供有效的策略梯度；因此实践中通常会对题库先做一次"难度探测"（用当前模型采样几次，统计正确率），保留正确率处于中等区间的题目。
+
+> 参见：[对齐 · LLM对齐](../深度学习/对齐.md#llm对齐)（数据标注在 SFT/RM/RLHF 全流程中的位置）。
+
+### 4.5 训练工程细节
+
+前面各节的训练循环都简化为"forward → backward → step"，本节补充让训练真正跑得动、跑得稳的工程手段：混合精度、学习率调度和分布式训练。梯度裁剪、梯度累积的公式与代码见 [GRPO与PPO算法详解 · 八、梯度下降与反向传播](../深度学习/GRPO与PPO算法详解.md#八梯度下降与反向传播)，此处不再重复，只补充分布式与调度部分。
+
+#### 4.5.1 混合精度训练
+
+现代 GPU（如 A100/H100）对 fp16/bf16 张量核心的吞吐量远高于 fp32，混合精度训练用低精度做大部分计算、用 fp32 保留关键的数值累加，从而在几乎不损失精度的前提下大幅提速、节省显存。
+
+| 精度 | 数值范围 | 常见问题 | 适用场景 |
+|------|---------|---------|---------|
+| fp32 | 范围大、精度高 | 显存占用大、计算慢 | 优化器状态、部分归约操作 |
+| fp16 | 范围窄（易溢出/下溢） | 大模型训练中梯度容易 underflow | 需要配合 loss scaling |
+| bf16 | 范围与 fp32 相同、尾数精度更低 | 几乎不需要 loss scaling | 当前大模型训练的主流选择 |
+
+MiniMind 训练脚本中典型的 `autocast` 用法：
+
+```python
+scaler = torch.cuda.amp.GradScaler(enabled=(dtype == "float16"))
+
+with torch.cuda.amp.autocast(dtype=torch.bfloat16 if dtype == "bfloat16" else torch.float16):
+    result = model(input_ids, labels=labels)
+    loss = result.loss / accumulation_steps
+
+# fp16 需要 loss scaling 防止梯度下溢；bf16 可以跳过 scaler，直接 backward
+scaler.scale(loss).backward()
+
+if (step + 1) % accumulation_steps == 0:
+    scaler.unscale_(optimizer)
+    torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+    scaler.step(optimizer)
+    scaler.update()
+    optimizer.zero_grad(set_to_none=True)
+```
+
+`RMSNorm` 等对数值稳定性敏感的模块（见 3.5.1）通常会强制在 `.float()` 上计算再转换回原精度，这正是为了避免混合精度下均方根计算的累积误差。
+
+#### 4.5.2 学习率调度：Warmup + Cosine Decay
+
+学习率过大会导致训练初期损失震荡甚至发散，过小则收敛缓慢；warmup + cosine decay 是当前大模型训练的标准调度方式：
+
+$$
+\eta(t) =
+\begin{cases}
+\eta_{max} \cdot \dfrac{t}{T_{warmup}}, & t < T_{warmup} \\[6pt]
+\eta_{min} + \dfrac{1}{2}(\eta_{max}-\eta_{min})\left(1+\cos\left(\pi \cdot \dfrac{t-T_{warmup}}{T_{total}-T_{warmup}}\right)\right), & t \ge T_{warmup}
+\end{cases}
+$$
+
+- **Warmup 阶段**：学习率从 0 线性增长到 $\eta_{max}$，让模型参数（尤其是随机初始化的部分）在训练早期不被过大的梯度步长破坏；
+- **Cosine Decay 阶段**：学习率按余弦曲线平滑衰减到 $\eta_{min}$，相比阶梯衰减，末期的过渡更平滑，通常有更好的最终收敛效果。
+
+```python
+import math
+
+def lr_lambda(step, warmup_steps, total_steps, min_ratio=0.1):
+    if step < warmup_steps:
+        return step / max(1, warmup_steps)
+    progress = (step - warmup_steps) / max(1, total_steps - warmup_steps)
+    cosine = 0.5 * (1 + math.cos(math.pi * progress))
+    return min_ratio + (1 - min_ratio) * cosine
+
+scheduler = torch.optim.lr_scheduler.LambdaLR(
+    optimizer, lr_lambda=lambda step: lr_lambda(step, warmup_steps, total_steps)
+)
+```
+
+> 参见：[verl · 6.5 Actor/LR（学习率）](verl.md#65-actorlr学习率)——该节额外说明了 GRPO 训练中为什么通常倾向使用固定学习率而非 cosine 衰减：GRPO 自身的 clip、KL 约束、reward 归一化已提供足够的稳定性，末期学习率过早衰减到 0 反而会让训练提前停滞。这与预训练/SFT 阶段"必须用 warmup+cosine"形成有意思的对比：**阶段的稳定性来源不同，调度策略也应不同。**
+
+#### 4.5.3 分布式训练：DDP 与 ZeRO
+
+单卡显存和算力有限，训练更大的模型或使用更大 batch size 需要多卡甚至多机协同。
+
+**DDP（Distributed Data Parallel）**：每张卡都保存一份完整的模型副本，各自处理不同的数据分片，前向/反向传播独立进行，只在梯度计算完成后做一次 all-reduce 同步：
+
+```python
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+
+dist.init_process_group(backend="nccl")
+model = model.to(local_rank)
+model = DDP(model, device_ids=[local_rank])
+
+for input_ids, labels in loader:
+    result = model(input_ids, labels=labels)
+    loss = result.loss
+    loss.backward()          # backward 内部自动完成梯度 all-reduce
+    optimizer.step()
+    optimizer.zero_grad()
+```
+
+DDP 的问题在于每张卡都要保存完整的模型参数、梯度和优化器状态（对 Adam 类优化器而言，优化器状态通常是参数量的 2 倍），显存开销随模型增大而线性增长，很快就会成为瓶颈。
+
+**ZeRO（Zero Redundancy Optimizer）**：由 DeepSpeed 提出，核心思想是把参数、梯度、优化器状态分片存储在不同的卡上，而不是每张卡都保存完整副本：
+
+| ZeRO 阶段 | 分片内容 | 显存节省 | 通信开销 |
+|-----------|---------|---------|---------|
+| ZeRO-1 | 仅分片优化器状态 | 中等 | 较低 |
+| ZeRO-2 | 分片优化器状态 + 梯度 | 较大 | 中等 |
+| ZeRO-3 | 分片优化器状态 + 梯度 + 模型参数 | 最大（可训练远超单卡显存的模型） | 最高（需要在前向/反向时临时聚合参数分片） |
+
+使用 DeepSpeed 时，训练脚本本身几乎不变，只需提供配置文件：
+
+```json
+{
+  "train_micro_batch_size_per_gpu": 8,
+  "gradient_accumulation_steps": 4,
+  "bf16": {"enabled": true},
+  "zero_optimization": {
+    "stage": 2,
+    "allgather_bucket_size": 2e8,
+    "reduce_bucket_size": 2e8
+  }
+}
+```
+
+```python
+import deepspeed
+
+model_engine, optimizer, loader, scheduler = deepspeed.initialize(
+    model=model, optimizer=optimizer, training_data=dataset, config="ds_config.json"
+)
+
+for batch in loader:
+    loss = model_engine(batch).loss
+    model_engine.backward(loss)   # 梯度分片同步在内部自动处理
+    model_engine.step()
+```
+
+**如何选择**：MiniMind 这种百 M 级别的小模型单卡即可容纳，用 DDP（甚至单卡）即可完成预训练；当模型规模增长到显存放不下完整的参数+梯度+优化器状态时，才需要引入 ZeRO-2/3 或更复杂的张量并行/流水线并行（这些不在本文讨论范围内，可视为下一步的工程扩展方向）。
+
+### 4.6 推理
+
+前面几节讲的都是"如何训练"，本节补上训练完成后"如何使用"：KV Cache 在真实推理中如何生效、如何从 logits 采样出下一个 token，以及如何实现流式输出。
+
+#### 4.6.1 自回归生成与 KV Cache 的实际使用
+
+3.2.3 节介绍了 KV Cache 的原理（缓存历史 Key/Value，避免重复计算），这里给出它在自回归生成循环中的完整使用方式：
+
+```python
+@torch.no_grad()
+def generate_step_by_step(model, input_ids, max_new_tokens, eos_id):
+    past_key_values = None
+    generated = input_ids
+
+    for _ in range(max_new_tokens):
+        if past_key_values is None:
+            # 第一步：完整地把 prompt 过一遍模型，同时建立 KV Cache
+            outputs = model(generated, use_cache=True)
+        else:
+            # 之后每一步：只输入新生成的最后一个 token，
+            # 历史信息全部来自 past_key_values，不需要重新计算
+            outputs = model(generated[:, -1:], past_key_values=past_key_values, use_cache=True)
+
+        logits = outputs.logits[:, -1, :]          # 只关心最后一个位置的下一个 token 分布
+        past_key_values = outputs.past_key_values   # 更新缓存（见 3.2.5 中 present_key_value 的构造）
+
+        next_token = sample_next_token(logits)       # 见 4.6.2 采样策略
+        generated = torch.cat([generated, next_token], dim=1)
+
+        if (next_token == eos_id).all():
+            break
+
+    return generated
+```
+
+关键点：**第一步（prefill）必须处理完整 prompt，之后每一步（decode）只需要处理一个新 token**。没有 KV Cache 时，decode 阶段每一步都要把已生成的全部序列重新过一遍模型，计算量随生成长度呈平方级增长；有了 KV Cache，每一步只需要计算新 token 与历史 Cache 的注意力，计算量随生成长度线性增长。
+
+#### 4.6.2 采样策略：从 logits 到下一个 token
+
+模型每一步输出的是词表大小的 logits，如何从中选出下一个 token 直接影响生成质量与多样性：
+
+| 策略 | 做法 | 效果 |
+|------|------|------|
+| Greedy（贪心） | 直接取概率最大的 token | 确定性输出，容易重复、缺乏多样性 |
+| Temperature（温度） | 采样前将 logits 除以温度 $\tau$ 再 softmax | $\tau<1$ 让分布更尖锐（更保守），$\tau>1$ 让分布更平滑（更随机） |
+| Top-k | 只在概率最高的 $k$ 个 token 中采样 | 截断长尾的低概率、不合理 token |
+| Top-p（nucleus） | 只在累计概率达到 $p$ 的最小 token 集合中采样 | 比固定 $k$ 更自适应：分布尖锐时集合小，分布平坦时集合大 |
+| Repetition penalty | 对已经出现过的 token 的 logits 做惩罚 | 减少复读机式的重复生成 |
+
+```python
+def sample_next_token(logits, temperature=0.7, top_k=50, top_p=0.9, repetition_penalty=1.1, generated_ids=None):
+    # 1. 重复惩罚：降低已经出现过的 token 的 logits
+    if generated_ids is not None:
+        for token_id in set(generated_ids[0].tolist()):
+            logits[0, token_id] /= repetition_penalty
+
+    # 2. 温度缩放
+    logits = logits / max(temperature, 1e-5)
+
+    # 3. Top-k：只保留概率最高的 k 个 token，其余置为 -inf
+    if top_k is not None:
+        topk_values, _ = torch.topk(logits, top_k)
+        logits[logits < topk_values[:, [-1]]] = float("-inf")
+
+    # 4. Top-p：按概率降序累加，超过 p 之后的 token 置为 -inf
+    probs = F.softmax(logits, dim=-1)
+    sorted_probs, sorted_idx = torch.sort(probs, descending=True)
+    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+    sorted_mask = cumulative_probs - sorted_probs > top_p
+    sorted_probs[sorted_mask] = 0.0
+    probs = torch.zeros_like(probs).scatter_(-1, sorted_idx, sorted_probs)
+
+    # 5. 按最终分布采样
+    probs = probs / probs.sum(dim=-1, keepdim=True)
+    next_token = torch.multinomial(probs, num_samples=1)
+    return next_token
+```
+
+`temperature → 0` 时采样退化为 greedy；RL 训练中的 rollout（见 4.3.5 节）通常使用较高的 temperature 以保证 $G$ 条轨迹之间有足够差异，而最终面向用户的推理服务则常用较低的 temperature 以提升稳定性。
+
+#### 4.6.3 流式生成
+
+面向用户的对话产品通常希望文字逐字/逐词吐出，而不是等待完整回答生成完毕才一次性返回。基于 4.6.1 的逐步生成循环，只需要在每一步产出新 token 后立即解码并 yield：
+
+```python
+def stream_generate(model, tokenizer, input_ids, max_new_tokens, eos_id):
+    past_key_values = None
+    generated = input_ids
+
+    for _ in range(max_new_tokens):
+        if past_key_values is None:
+            outputs = model(generated, use_cache=True)
+        else:
+            outputs = model(generated[:, -1:], past_key_values=past_key_values, use_cache=True)
+
+        logits = outputs.logits[:, -1, :]
+        past_key_values = outputs.past_key_values
+        next_token = sample_next_token(logits, generated_ids=generated)
+        generated = torch.cat([generated, next_token], dim=1)
+
+        if (next_token == eos_id).all():
+            break
+
+        # 立即把新 token 解码成文本片段并产出，前端可以逐字渲染
+        yield tokenizer.decode(next_token[0], skip_special_tokens=True)
+```
+
+工程上，流式生成通常还要处理：多字节 UTF-8 字符被单个 token 切断导致的乱码（需要缓冲到完整字符再输出）、多个并发请求的 batch 化调度（不同请求的生成长度不同，需要动态 batching），以及与 4.3.5 节 Agentic RL 中 rollout 引擎的关系——两者本质上是同一套自回归生成循环，区别只在于推理服务面向单次用户请求返回文本，而 RL rollout 需要额外记录每一步的 log-prob 用于后续计算 ratio 与 advantage。
+
+---
+
 ## 总结
 
 从 Tokenizer 训练、模型结构设计到预训练 / SFT / RL 三阶段训练，MiniMind 完整复现了现代大语言模型从随机初始化到具备文本生成、指令遵循和 Agent 能力的全过程。几个关键设计选择贯穿全文：
 
 - **Tokenizer**：Byte-level BPE + Added/Special Token + Chat Template，让任意文本都能被稳定编码，并让对话结构、工具调用可以被模型理解。
 - **模型结构**：GQA 平衡了 KV Cache 开销与表达能力，RoPE（及其 YaRN 等长度外推变体）注入相对位置信息，SwiGLU FFN 提供门控非线性，RMSNorm + PreNorm + 残差连接保证深层训练稳定。
-- **训练方式**：预训练与 SFT 共享同一个 next-token 交叉熵框架，只是数据分布和 loss mask 不同；强化学习则在此基础上引入"回报加权的交叉熵"这一统一视角，PPO/GRPO/DAPO/GSPO/CISPO 等算法的差异都可以归纳到 rollout 组织、advantage 估计、ratio 粒度、proximal 机制、loss 聚合、正则化这六个可替换组件上。
+- **数据处理**：预训练、SFT、RL 三阶段数据在"规模"与"标注精度"上此消彼长，分别对应通用语料清洗、结构化对话构造、可程序验证的 `gt` 设计三套不同流程。
+- **训练方式**：预训练与 SFT 共享同一个 next-token 交叉熵框架，只是数据分布和 loss mask 不同；对齐阶段既可以走 **on-policy** 的强化学习路线（REINFORCE → PPO → GRPO/DAPO/GSPO/CISPO，统一视角是"回报加权的交叉熵"，差异在 rollout 组织、advantage 估计、ratio 粒度、proximal 机制、loss 聚合、正则化六个可替换组件），也可以走 **off-policy** 的 DPO 路线（在离线偏好对上做监督学习，跳过显式奖励模型和在线 rollout）；两条路线在实践中常常先 DPO 再 RL 组合使用。
+- **训练工程**：混合精度、warmup+cosine 学习率调度、DDP/ZeRO 分布式训练，是让上述算法在真实硬件上跑得动、跑得稳的必要条件，其重要性并不亚于算法本身的设计。
+- **推理部署**：训练好的模型依赖 KV Cache 把自回归生成的计算量从平方级降到线性级，再通过 temperature/top-k/top-p/repetition penalty 等采样策略和流式输出，才能变成一个可用的对话服务；这套自回归生成循环也正是 Agentic RL 中 rollout 引擎的底层实现。
 
-延伸阅读见文首「关联笔记」列表，建议按 **Attention/Transformer 基础 → 参数与形状细节 → MoE → PPO/GRPO 对照表 → 对齐 → verl 工程实践** 的顺序交叉阅读，形成从原理到工程的完整闭环。
+延伸阅读见文首「关联笔记」列表，建议按 **Attention/Transformer 基础 → 参数与形状细节 → MoE → PPO/GRPO 对照表 → 对齐（含 DPO 视角）→ verl 工程实践** 的顺序交叉阅读，形成从原理到工程的完整闭环。

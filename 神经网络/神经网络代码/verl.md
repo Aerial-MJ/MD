@@ -1,6 +1,6 @@
 # Verl
 
-> 关联笔记：verl 这类框架所实现的 PPO/GRPO rollout-reward-update 流程，可对照 [MiniMind从0到1构建大模型 · 4.3 强化学习](MiniMind从0到1构建大模型.md#43-强化学习) 中从零手写的简化版实现（含 Agentic RL 多轮工具调用 rollout）。
+> 关联笔记：verl 这类框架所实现的 PPO/GRPO rollout-reward-update 流程，可对照 [MiniMind从0到1构建大模型 · 4.3 强化学习](MiniMind从0到1构建大模型.md#43-强化学习) 中从零手写的简化版实现（含 Agentic RL 多轮工具调用 rollout）；混合精度、学习率调度、DDP/ZeRO 等工程化细节见 [4.5 训练工程细节](MiniMind从0到1构建大模型.md#45-训练工程细节)。
 
 ## 一、什么是 **verl**
 

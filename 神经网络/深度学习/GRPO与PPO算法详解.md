@@ -1,6 +1,6 @@
 # GRPO 与 PPO 算法详解
 
-> 关联笔记：这些公式在 MiniMind 强化学习实践中的完整代码与统一视角，见 [MiniMind从0到1构建大模型 · 4.3 强化学习](../神经网络代码/MiniMind从0到1构建大模型.md#43-强化学习)。
+> 关联笔记：这些公式在 MiniMind 强化学习实践中的完整代码与统一视角，见 [MiniMind从0到1构建大模型 · 4.3 强化学习](../神经网络代码/MiniMind从0到1构建大模型.md#43-强化学习)。本文只覆盖 on-policy 的 PPO/GRPO 系算法；off-policy、不需要在线 rollout 的 DPO 及其与 PPO/GRPO 的对比见 [4.3.3 DPO：跳过显式奖励模型和在线 rollout](../神经网络代码/MiniMind从0到1构建大模型.md#433-dpo跳过显式奖励模型和在线-rollout)。
 
 ---
 

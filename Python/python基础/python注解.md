@@ -453,3 +453,351 @@ No tags provided.
 - **`Union`**：多种可能的类型（例如`int`或`str`）。
 - **`Sequence`**：任意支持顺序操作的容器类型，指定元素类型。
 - **`Optional`**：某种类型或`None`。
+
+---
+
+## 装饰器（Decorator，`@` 注解）
+
+前面讲的 `: int`、`-> str` 这种是**类型注解**，只是给人和静态检查工具看的**提示信息**，**不会在运行时做任何事情**。
+
+而 `@` 开头的是**装饰器（Decorator）**，它是**真正会执行的语法糖**：会在函数/类定义完成的那一刻，把它替换成另一个对象（通常是包装后的函数）。
+
+**两者的本质区别**：
+
+| | 类型注解 `x: int` | 装饰器 `@decorator` |
+|---|---|---|
+| 运行时行为 | 不执行任何操作，仅记录在 `__annotations__` 里 | 会真正执行代码，修改/包装原对象 |
+| 作用 | 提示类型，给 IDE/`mypy` 用 | 增强或改变函数、类的行为 |
+| 例子 | `def f(a: int) -> str:` | `@staticmethod`、`@property` |
+
+### 1. 装饰器的本质
+
+装饰器本质是一个**高阶函数**：接收一个函数作为参数，返回一个新的函数。
+
+```python
+def my_decorator(func):
+    def wrapper(*args, **kwargs):
+        print("函数执行前")
+        result = func(*args, **kwargs)
+        print("函数执行后")
+        return result
+    return wrapper
+
+@my_decorator
+def say_hello():
+    print("Hello!")
+
+say_hello()
+```
+
+**输出**：
+```
+函数执行前
+Hello!
+函数执行后
+```
+
+**解释**：
+
+- `@my_decorator` 等价于 `say_hello = my_decorator(say_hello)`。
+- 调用 `say_hello()` 实际上调用的是 `wrapper()`，`wrapper` 内部再去调用原始的 `func`（也就是原始的 `say_hello`）。
+
+### 2. 带参数的函数装饰器
+
+如果被装饰的函数本身带参数，`wrapper` 需要用 `*args, **kwargs` 转发参数。
+
+```python
+def log(func):
+    def wrapper(*args, **kwargs):
+        print(f"调用函数: {func.__name__}，参数: {args}, {kwargs}")
+        return func(*args, **kwargs)
+    return wrapper
+
+@log
+def add(a, b):
+    return a + b
+
+print(add(3, 5))
+```
+
+**输出**：
+```
+调用函数: add，参数: (3, 5), {}
+8
+```
+
+### 3. 带参数的装饰器（装饰器工厂）
+
+如果装饰器本身也需要传参数（例如 `@retry(times=3)`），要再包一层函数：
+
+```python
+def repeat(times):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            for _ in range(times):
+                result = func(*args, **kwargs)
+            return result
+        return wrapper
+    return decorator
+
+@repeat(times=3)
+def greet(name):
+    print(f"Hello, {name}")
+
+greet("Alice")
+```
+
+**输出**：
+```
+Hello, Alice
+Hello, Alice
+Hello, Alice
+```
+
+**解释**：`@repeat(times=3)` 先调用 `repeat(3)`，返回真正的装饰器 `decorator`，再用它去装饰 `greet`。相当于三层嵌套：`repeat` → `decorator` → `wrapper`。
+
+### 4. `functools.wraps`：保留原函数的元信息
+
+上面的写法有个问题：被装饰后，函数的 `__name__`、`__doc__` 等元信息会变成 `wrapper` 的，而不是原函数的。
+
+```python
+def log(func):
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+@log
+def add(a, b):
+    """两数相加"""
+    return a + b
+
+print(add.__name__)  # wrapper  ❌ 期望是 add
+print(add.__doc__)   # None     ❌ 期望是 "两数相加"
+```
+
+用 `functools.wraps` 修复：
+
+```python
+from functools import wraps
+
+def log(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+@log
+def add(a, b):
+    """两数相加"""
+    return a + b
+
+print(add.__name__)  # add   ✅
+print(add.__doc__)   # 两数相加 ✅
+```
+
+**结论**：**自定义装饰器时，习惯性给内层 `wrapper` 加上 `@wraps(func)`。**
+
+### 5. 常见的内置/标准库装饰器
+
+#### `@staticmethod`：静态方法
+
+不需要访问实例（`self`）或类（`cls`），本质上就是普通函数放到类里。
+
+```python
+class Math:
+    @staticmethod
+    def add(a, b):
+        return a + b
+
+print(Math.add(1, 2))  # 3，无需实例化
+```
+
+#### `@classmethod`：类方法
+
+第一个参数是类本身（`cls`），常用于替代构造函数。
+
+```python
+class Person:
+    def __init__(self, name):
+        self.name = name
+
+    @classmethod
+    def from_string(cls, s: str):
+        name = s.strip()
+        return cls(name)
+
+p = Person.from_string("  Alice  ")
+print(p.name)  # Alice
+```
+
+#### `@property`：把方法变成属性
+
+让方法可以像属性一样被访问（不加括号），常用于封装只读属性或做校验。
+
+```python
+class Circle:
+    def __init__(self, radius: float):
+        self._radius = radius
+
+    @property
+    def area(self) -> float:
+        return 3.14159 * self._radius ** 2
+
+c = Circle(2)
+print(c.area)  # 12.56636，注意没有加括号
+```
+
+`@property` 还可以配合 `@x.setter` 实现"读写受控"的属性：
+
+```python
+class Person:
+    def __init__(self, age: int):
+        self._age = age
+
+    @property
+    def age(self) -> int:
+        return self._age
+
+    @age.setter
+    def age(self, value: int) -> None:
+        if value < 0:
+            raise ValueError("年龄不能为负数")
+        self._age = value
+
+p = Person(20)
+p.age = 25       # 调用 setter
+print(p.age)     # 25
+p.age = -1       # 抛出 ValueError
+```
+
+#### `@dataclass`：自动生成 `__init__` 等方法
+
+配合前面讲到的**属性注解**使用，自动根据类的注解字段生成 `__init__`、`__repr__`、`__eq__` 等方法，避免手写模板代码。
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+
+p1 = Point(1, 2)
+p2 = Point(1, 2)
+print(p1)          # Point(x=1, y=2)，自动生成的 __repr__
+print(p1 == p2)     # True，自动生成的 __eq__
+```
+
+#### `@functools.lru_cache`：结果缓存（记忆化）
+
+自动缓存函数的返回结果，参数相同时直接返回缓存值，常用于优化递归、耗时计算。
+
+```python
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n: int) -> int:
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+print(fib(35))  # 有缓存，速度很快
+```
+
+#### `@abstractmethod`：抽象方法
+
+配合 `ABC`（Abstract Base Class）使用，强制子类必须实现该方法，否则无法实例化。
+
+```python
+from abc import ABC, abstractmethod
+
+class Shape(ABC):
+    @abstractmethod
+    def area(self) -> float:
+        pass
+
+class Square(Shape):
+    def __init__(self, side: float):
+        self.side = side
+
+    def area(self) -> float:
+        return self.side ** 2
+
+# shape = Shape()      # ❌ TypeError，不能实例化抽象类
+square = Square(4)
+print(square.area())   # 16.0
+```
+
+#### `contextlib.contextmanager`：把生成器变成上下文管理器
+
+详见「异常处理机制」笔记，这里简单回顾一下用法：
+
+```python
+from contextlib import contextmanager
+
+@contextmanager
+def open_file(path):
+    f = open(path, "r")
+    try:
+        yield f          # yield 之前是 __enter__，之后是 __exit__
+    finally:
+        f.close()
+
+with open_file("test.py") as f:
+    print(f.read())
+```
+
+### 6. 类装饰器
+
+装饰器不仅可以装饰函数，也可以装饰类本身（接收一个类，返回一个类或其他对象）。`@dataclass` 就是一个典型的类装饰器。
+
+```python
+def singleton(cls):
+    instances = {}
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+    return get_instance
+
+@singleton
+class Database:
+    def __init__(self):
+        print("创建数据库连接")
+
+db1 = Database()   # 创建数据库连接
+db2 = Database()   # 不会再打印，返回同一个实例
+print(db1 is db2)  # True
+```
+
+### 7. 多个装饰器叠加
+
+装饰器可以叠加使用，**执行顺序是从下往上（离函数最近的先装饰）**，但**调用顺序是从上往下**。
+
+```python
+def bold(func):
+    def wrapper():
+        return f"<b>{func()}</b>"
+    return wrapper
+
+def italic(func):
+    def wrapper():
+        return f"<i>{func()}</i>"
+    return wrapper
+
+@bold
+@italic
+def text():
+    return "Hello"
+
+print(text())  # <b><i>Hello</i></b>
+```
+
+**解释**：相当于 `text = bold(italic(text))`，所以先用 `italic` 包一层，再用 `bold` 包一层，输出时先看到 `bold` 的标签在最外层。
+
+### 总结
+
+- **类型注解**（`x: int`、`-> str`）：纯静态提示，不影响运行时行为，主要给人和 `mypy` 看。
+- **装饰器**（`@decorator`）：运行时真正执行的语法糖，本质是"用一个函数/对象替换原函数/类"，常用于日志、缓存、权限校验、单例、注册机制等场景。
+- 常见内置装饰器：`@staticmethod`、`@classmethod`、`@property`、`@dataclass`、`@functools.lru_cache`、`@abstractmethod`、`@contextlib.contextmanager`。
+- 自定义装饰器时记得用 `functools.wraps` 保留原函数的元信息。

@@ -1,5 +1,7 @@
 # VLLM
 
+> 关联笔记：本文中 PagedAttention/FlashAttention 的区别、以及 eager/SDPA/FlashAttention 等 Attention 底层实现方式的系统梳理，见 [分布式训练与推理加速全解 · 八、推理侧 Attention 实现方式](../神经网络代码/分布式训练与推理加速全解.md#八推理侧attention-的几种实现方式eager--sdpa--flashattention--pagedattention)；分布式训练侧的 DP/DDP/FSDP/TP/PP/ZeRO 等并行策略见同一篇笔记的前半部分。
+
 安装VLLM
 
 pip install vllm==0.6.4.post1 --extra-index-url https://download.pytorch.org/whl/cu121

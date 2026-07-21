@@ -4,7 +4,134 @@
 
 ---
 
-## 一、两大类划分
+## 零、最顶层的分类：先分「参数」和「激活」，再谈其他
+
+在细分"权重矩阵"和"嵌入矩阵"之前，有一个更上层、更重要的分类必须先分清楚，否则后面所有的名词都会绕在一起：**Transformer 里的所有"矩阵/向量"，先分成参数（parameters）和激活（activations）两大类，参数是"练出来存起来的"，激活是"每次 forward 临时算出来的"。**
+
+### 判断标准：只问一句话
+
+```
+拿到一个东西（比如 Q vector、W_Q、hidden state、KV cache……），
+只需要问自己一个问题：
+
+  "换一个输入句子，这个东西的值会不会变？"
+
+  会变     → 它是 activation（激活 / 中间计算结果）
+  不会变   → 它是 parameter（参数 / 权重）
+             （唯一能让它变的方式是"训练更新"，而不是"换个输入句子"）
+```
+
+拿几个具体例子过一遍这个判断标准：
+
+```
+W_Q（Query 权重矩阵）：
+  换一句话输入，W_Q 的数值变不变？→ 不变（除非你在训练、做了一次 backward+step）
+  → W_Q 是 parameter
+
+Q（Query 向量，= x @ W_Q）：
+  换一句话输入，Q 的数值变不变？→ 变！因为 x 变了，Q = x @ W_Q 自然跟着变
+  → Q 是 activation
+
+Token Embedding 矩阵 E（比如 [vocab_size, d_model] 那张大表）：
+  换一句话输入，E 这张表本身变不变？→ 不变，E 是固定存好的一张表
+  → E 是 parameter
+```
+
+### 完整分类图
+
+```
+Transformer 里的所有"东西"
+        │
+   ┌────┴────┐
+   │         │
+参数(parameters)              激活(activations)
+训练时被更新                   每次 forward 临时产生
+保存在 checkpoint 里            用完即可丢弃（除了 KV Cache 会被主动缓存）
+   │                              │
+   ├── Token Embedding 矩阵 E      ├── Embedding 向量（E[id] 查表结果）
+   ├── Positional Embedding PE     ├── Hidden state（input_embedding/hidden_1/hidden_2……，见七）
+   │   （若可学习；RoPE 无参数）      ├── Q / K / V 向量
+   ├── W_Q / W_K / W_V / W_O       ├── Attention Score / 权重矩阵（softmax 后）
+   ├── W1 / W2 / W_gate（FFN）      ├── Attention output
+   ├── LM Head（lm_head.weight）    ├── FFN 中间结果 / FFN output
+   ├── LayerNorm 的 γ / β          ├── KV Cache（被缓存的 K/V，本质仍是激活）
+   └── 各类 bias（若存在）           └── Logits / Softmax 概率
+```
+
+**一张对照表，把"是不是参数"和"训练方式"串起来**：
+
+| 名字 | 是参数还是激活 | 会不会出现在 checkpoint 里 |
+|------|---------------|---------------------------|
+| Token Embedding 矩阵 `E` | 参数 | ✅ 会 |
+| `E[id]`（embedding 向量） | 激活 | ❌ 不会（每次要用重新查） |
+| `W_Q / W_K / W_V / W_O` | 参数 | ✅ 会 |
+| `Q / K / V` 向量 | 激活 | ❌ 不会 |
+| Hidden state | 激活 | ❌ 不会 |
+| KV Cache | 激活（但推理时会被主动缓存复用） | ❌ 不会（只在推理过程中临时存在显存里） |
+| LM Head `lm_head.weight` | 参数 | ✅ 会（有时和 `E` 共享，见下文 Weight Tying） |
+| Logits / probs | 激活 | ❌ 不会 |
+
+
+**参数**
+
+```
+参数(parameters)
+|
+├── Embedding 参数
+│      ├── Token embedding
+│      ├── Position embedding（如果有）
+│      └── Output embedding / LM head
+│
+├── Attention 参数
+│      ├── Wq
+│      ├── Wk
+│      ├── Wv
+│      └── Wo
+│
+├── FFN 参数
+│      ├── W1
+│      ├── W2
+│      └── W3（SwiGLU）
+│
+├── Norm 参数
+│      ├── LayerNorm weight
+│      └── LayerNorm bias（部分模型）
+│
+└── Bias（如果存在）
+```
+
+```
+中间向量(activation)
+|
+├── input embedding
+├── hidden states
+├── query vector
+├── key vector
+├── value vector
+├── attention output
+├── FFN output
+└── KV cache
+```
+
+### 参数内部还能再细分：矩阵乘法型 vs 查表型
+
+上面把"参数"和"激活"分清楚之后，"参数"这个大类内部还可以再按**用法**细分成两种，这就是下一节要讲的内容——这一层细分和"参数 vs 激活"是两个不同维度的分类，不冲突，是嵌套关系：
+
+```
+参数(parameters)              ← 第一层分类：是否训练
+    │
+    ├── 矩阵乘法型权重          ← 第二层分类：怎么用
+    │     W_Q, W_K, W_V, W_O, W1, W2, lm_head
+    │     用法：output = x @ W
+    │
+    └── 查表型权重（嵌入矩阵）
+          Token Embedding E, 可学习式 Positional Embedding PE
+          用法：output = E[id]
+```
+
+---
+
+## 一、两大类划分（承接上面：参数内部的两种用法）
 
 ```
 Transformer 里所有参数，本质上都是矩阵（或向量），
@@ -247,49 +374,70 @@ Step 4：对所有 token 位置取平均
 
 ## 七、一张图总结所有向量
 
+> 图中每一步产生的激活都标了具体名字（不再统一叫 `x`），左边是**参数**（不随输入变化），右边箭头上标的是**激活**（每次 forward 随输入重新算出来的东西），对照着 [零、参数 vs 激活](#零最顶层的分类先分参数和激活再谈其他) 的判断标准看会更清楚。
+
 ```
 token_id
-  ↓  [查表]
-E ──────────────────────── Token Embedding    [vocab, d_model]
-PE ─────────────────────── Pos Embedding      [seq_len, d_model]
-  ↓  [相加]
-  x                                           [seq_len, d_model]
+  ↓  [查表：E[token_id]]
+E ──────────────────────── Token Embedding 参数  [vocab, d_model]
+PE ─────────────────────── Pos Embedding 参数    [seq_len, d_model]
+  ↓  [两者相加]
+  input_embedding ←────────────────────────────── 激活①：输入嵌入   [seq_len, d_model]
   ↓
-  ┌──────────────────────── Transformer Block × N层 ─────────────────────────┐
-  │                                                                           │
-  │  ① LayerNorm (γ, β)          ← Pre-LN：先 Norm 再 Attention              │
-  │       ↓                                                                   │
-  │  W_Q, W_K, W_V ────────── Attention权重   [d_model, d_k/v]               │
-  │       ↓  [attention计算]                                                  │
-  │  W_O ──────────────────── Output投影      [d_v×heads, d_model]            │
-  │       ↓                                                                   │
-  │  x = x + Attn_output        ← 残差（绕过了上面的 LN，直接加回原始 x）     │
-  │       ↓                                                                   │
-  │  ② LayerNorm (γ, β)          ← Pre-LN：先 Norm 再 FFN                    │
-  │       ↓                                                                   │
-  │  W1/gate_proj ─────────── FFN升维         [d_model, d_ffn]                │
-  │  W2/down_proj ─────────── FFN降维         [d_ffn, d_model]                │
-  │       ↓                                                                   │
-  │  x = x + FFN_output         ← 残差（绕过了上面的 LN，直接加回）           │
-  │                                                                           │
-  └───────────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────── Transformer Block × N层 ─────────────────────────────────┐
+  │                                                                                   │
+  │  ① LayerNorm (γ, β)          ← Pre-LN：先 Norm 再 Attention                      │
+  │       ↓                                                                           │
+  │  normed_1 ←──────────────────────────────────────── 激活②：Norm 后的隐状态         │
+  │       ↓                                                                           │
+  │  W_Q, W_K, W_V 参数 ────── Attention权重   [d_model, d_k/v]                       │
+  │       ↓  [矩阵乘法]                                                                │
+  │  Q, K, V ←───────────────────────────────────────── 激活③④⑤：Query/Key/Value 向量 │
+  │       ↓  [QK^T / √d_k → softmax]                                                  │
+  │  attn_weights ←──────────────────────────────────── 激活⑥：Attention 权重矩阵      │
+  │       ↓  [attn_weights @ V]                                                       │
+  │  attn_output ←───────────────────────────────────── 激活⑦：多头拼接后的注意力输出   │
+  │       ↓  [@ W_O]                                                                  │
+  │  attn_out_proj ←─────────────────────────────────── 激活⑧：Output 投影后的结果     │
+  │       ↓                                                                           │
+  │  hidden_1 = input_embedding + attn_out_proj  ←────── 激活⑨：残差相加后的隐状态       │
+  │       (残差：绕过了①的 LN，直接把最初的 input_embedding 加回来)                     │
+  │       ↓                                                                           │
+  │  ② LayerNorm (γ, β)          ← Pre-LN：先 Norm 再 FFN                            │
+  │       ↓                                                                           │
+  │  normed_2 ←──────────────────────────────────────── 激活⑩：Norm 后的隐状态         │
+  │       ↓                                                                           │
+  │  W1/gate_proj, W2/down_proj 参数 ── FFN权重  [d_model, d_ffn] / [d_ffn, d_model]   │
+  │       ↓  [矩阵乘法 + 激活函数]                                                      │
+  │  ffn_output ←────────────────────────────────────── 激活⑪：FFN 输出               │
+  │       ↓                                                                           │
+  │  hidden_2 = hidden_1 + ffn_output  ←──────────────── 激活⑫：本层最终输出的隐状态     │
+  │       (残差：绕过了②的 LN，直接把 hidden_1 加回来)                                  │
+  │                                                                                   │
+  └───────────────────────────────────────────────────────────────────────────────────┘
+  ↓  hidden_2 作为下一层的输入，重复 N 次上面整个 Block，
+  ↓  每一层都会产生自己的一整套 normed_1/Q/K/V/attn_output/hidden_1/hidden_2……（激活不跨层复用）
   ↓
-Final LayerNorm (γ, β)     ← 单独再 Norm 一次！因为最后的 x 没被 Norm 过
+Final LayerNorm (γ, β)     ← 单独再 Norm 一次！因为最后的 hidden_2 没被 Norm 过
   ↓                           （Post-LN 没有这步，Pre-LN 必须有）
-lm_head ────────────────── LM Head            [d_model, vocab]
+final_hidden ←────────────────────────────────────────── 激活⑬：最终隐状态  [seq_len, d_model]
   ↓
-logits                                        [vocab_size]
+lm_head 参数 ────────────── LM Head            [d_model, vocab]
+  ↓  [矩阵乘法]
+logits ←──────────────────────────────────────────────── 激活⑭：未归一化得分  [vocab_size]
   ↓  [softmax]
-probs                                         [vocab_size]
+probs ←───────────────────────────────────────────────── 激活⑮：概率分布     [vocab_size]
   ↓  [-log(P_correct)]
-Loss（标量）
+Loss（标量，也是激活，只是不再往下传）
   ↓  [backward]
-所有参数的梯度
+所有参数（E, PE, W_Q...W_O, W1/W2/W_gate, γ/β, lm_head）的梯度
   ↓  [optimizer.step]
-参数更新
+参数更新（只更新左边的参数，右边这些激活每次 forward 都会被重新算出来，不会被保存）
 ```
 
-**一句话：** token → embedding → N层(attention+FFN) → lm_head → logits → softmax → 概率 → -log → loss → backward → 更新所有权重矩阵。
+**一句话：** token → **input_embedding**（激活①）→ N 层反复产生 **normed → Q/K/V → attn_weights → attn_output → hidden_1 → normed → ffn_output → hidden_2**（激活②~⑫，每层都是全新的一套，不复用上一层的）→ **final_hidden**（激活⑬）→ **logits**（激活⑭）→ **probs**（激活⑮）→ -log → loss → backward → 更新左边那些参数矩阵（`E/PE/W_Q/W_K/W_V/W_O/W1/W2/γ/β/lm_head`）。
+
+> **命名说明**：这里的 `hidden_1`、`hidden_2` 特指"本层内部第 1 次 / 第 2 次残差相加之后"的状态，是本文为了教学标注方便起的编号，不是学术界统一叫法（论文里更常见的是按层号写成 $h_l$，一层一个）。如果你在别的资料里看到 $h_l$ 这种写法，$l$ 指的是"第几层"，而这里的 `hidden_1/hidden_2` 指的是"层内部第几步"，两套编号维度不同，注意别混用。
 
 ---
 

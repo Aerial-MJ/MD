@@ -39,7 +39,7 @@ Transformer 里所有参数，本质上都是矩阵（或向量），
 | 名字 | 英文全称 | 形状 | 作用 |
 |------|---------|------|------|
 | 词嵌入矩阵 | Token Embedding / Word Embedding `E` | `[vocab_size, d_model]` | 把 token id 变成向量 |
-| 位置嵌入 | Positional Embedding `PE` | `[max_seq_len, d_model]` | 给每个位置加位置信息 |
+| 位置嵌入矩阵 | Positional Embedding `PE` | `[max_seq_len, d_model]` | 给每个位置加位置信息 |
 
 ```
 输入：token id = 42

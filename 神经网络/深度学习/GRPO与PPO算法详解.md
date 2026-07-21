@@ -59,6 +59,73 @@ PPO/GRPO = "在线采样" + "近似 on-policy"（容忍小范围偏差，靠 cli
 DPO      = "离线数据" + "严格 off-policy"（数据和当前策略完全解耦）
 ```
 
+### 工程实现：`old_logp` 和 `new_logp` 到底是怎么来的
+
+上面说"复用同一批 rollout 数据做 K 步更新，导致偏差"，这一段展开讲清楚工程上具体怎么实现——`old_logp`/`new_logp` 是不是都要保存 log 概率、什么时候需要重新 forward。
+
+**完整流程分三个阶段：Rollout → 计算 old_logp（一次性）→ K 步更新循环（每步都要重新 forward 算 new_logp）**
+
+```
+阶段 1：Rollout（生成阶段，模型处于 eval/no_grad 模式）
+────────────────────────────────────────────────
+  用当前参数 θ_old 生成一批回答：
+    response = model.generate(prompt)          # 自回归采样，通常带 KV Cache 加速
+  这一步只需要 token id，不需要梯度
+
+阶段 2：计算 old_logp（只做一次，之后全程冻结不变）
+────────────────────────────────────────────────
+  拿到 response 后，把 (prompt + response) 完整地喂回模型做一次 forward，
+  取出每个生成位置的 log 概率：
+    with torch.no_grad():
+        old_logits = model(prompt + response).logits
+        old_logp = log_softmax(old_logits)[response 对应位置的 token]
+  关键点：
+    - old_logp 存的是"数值"（一个 detach 之后的 tensor），不是"概率分布"，
+      更不是重新保存一份模型参数
+    - 之后 K 步更新全程复用这同一份 old_logp，不会再变
+
+阶段 3：K 步梯度更新循环（每一步都要重新 forward）
+────────────────────────────────────────────────
+  for k in range(K):                            # K 通常取 1~4
+      new_logits = model(prompt + response).logits   # ← 用当前（已更新过 k 次）的参数重新 forward
+      new_logp = log_softmax(new_logits)[response 对应位置的 token]
+
+      ratio = torch.exp(new_logp - old_logp)     # old_logp 是常数，new_logp 每次都不同
+      loss = ppo_or_grpo_loss(ratio, advantages, ...)
+
+      loss.backward()
+      optimizer.step()
+      optimizer.zero_grad()
+      # 注意：这里没有重新 generate，response（token id）从头到尾没变过！
+      # 只是让同一批 token，在参数不断更新的模型上，重新算一遍"这些 token 现在的概率是多少"
+```
+
+**几个容易搞混的点：**
+
+1. **`old_logp` 只在 rollout 刚结束时算一次，之后当常数用**。它不是"保存一份旧模型权重"，而是"保存这批 token 在旧策略下的 log 概率数值"，是一个不带梯度的普通张量（`.detach()` 或在 `torch.no_grad()` 下算出来的）。
+2. **`new_logp` 在 K 步循环里每一步都要重新 forward**。因为每做一次 `optimizer.step()`，模型参数就变了，同一批 token 在新参数下的概率也会跟着变，所以必须重新算，不能复用上一步的 `new_logp`。
+3. **`response`（生成出来的 token id 本身）在整个 K 步循环里是固定不变的**，变的只是"用什么参数去算这批 token 的概率"。这也是为什么会有 off-policy 偏差：数据（token）是 $\pi_\text{old}$ 生成的，但到了第 2、3、4 步，算 `new_logp` 用的其实已经是 $\pi_\text{new1}$、$\pi_\text{new2}$……的参数了，`ratio = new_logp / old_logp`（对数域是相减）就是用来量化这个"参数已经变了多少"的偏差，并据此做 clip。
+4. **第 1 步（k=0）时 `new_logp` 理论上应该等于 `old_logp`**（因为参数还没更新过），这也是很多实现里用来验证代码正确性的一个检查点：如果 k=0 时 `ratio` 不等于 1，说明 rollout 和训练用的 forward 逻辑不一致（比如 dropout 没关、精度不一致等），是常见的 bug 来源。
+5. GRPO 额外的 `ref_logp`（参考模型的 log 概率）计算方式和 `old_logp` 类似，也是在 rollout 之后用参考模型（冻结、不参与训练）做一次 forward 算出来，全程不变。
+
+```
+时间线一览：
+
+rollout（生成 response，不需要梯度）
+    ↓
+forward 一次，得到 old_logp（存为常量，之后不再变）
+forward 一次，得到 ref_logp（GRPO 需要，同样存为常量）
+    ↓
+┌─ k=0: forward 得到 new_logp(θ_0) → ratio≈1 → 更新参数 → θ_1
+├─ k=1: forward 得到 new_logp(θ_1) → ratio 略偏离 1 → 更新参数 → θ_2
+├─ k=2: forward 得到 new_logp(θ_2) → ratio 偏离更多 → clip 开始起作用 → θ_3
+└─ k=3: forward 得到 new_logp(θ_3) → 偏离最大，clip 影响最明显 → θ_4
+    ↓
+K 步用完，用 θ_4 重新做 rollout，生成下一批数据，整个流程重来
+```
+
+> 关联代码：`old_logps`/`new_logps`/`ref_logps` 在 GRPO loss 里具体如何参与计算，见 [手写DPO_PPO_GRPO代码合集 · GRPO](../神经网络代码/基础代码/手写DPO_PPO_GRPO代码合集.md#三grpogroup-relative-policy-optimization)；verl 等框架里这几类 log 概率对应的具体调度和显存管理，见 [verl](../神经网络代码/verl.md)。
+
 ---
 
 ## 一、三种算法总览

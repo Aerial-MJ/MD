@@ -1,5 +1,13 @@
 # vLLM 参数与推理机制详解
 
+## 三句话总结
+
+**`max_num_batched_tokens`**：一次 forward（一个 step）里，所有请求（不管是在 Prefill 还是 Decode）加起来最多能处理的 token 总数上限，控制的是"这一步计算量有多大"，直接决定显存里激活值的峰值大小。
+
+**`mixed prefill-decode`**：因为开了 Chunked Prefill，一个 step 里可以**同时**塞入"某些请求的 Prefill 片段"和"另一些请求的 Decode token"，两者混在一起算，不用等 Prefill 全部做完才轮到 Decode。
+
+**CUDA Graph 加速手段**：把 GPU 要执行的一连串固定指令**提前录好、之后直接整体回放**，省掉 CPU 和 GPU 每一步来回请示汇报的通信开销，从而提速（PIECEWISE 就是"只把形状固定、能录的那部分层录成回放，形状不固定的 Prefill 部分照常现场算"）。
+
 ## 一、两个核心参数的区别
 
 ### `--max-model-len`
@@ -49,6 +57,43 @@ max_num_batched_tokens 越大
 → 瞬时显存峰值越高
 → 越容易 OOM
 ```
+
+> ⚠️ **常见误区**："一次 forward 不应该只处理一个 token 吗？"——这个说法只在**纯 Decode、单个请求**时成立。上面例子里 A~E 贡献的 2000 token 并不是 Decode 生成的，而是它们的 **Prefill**（详见下一节）。一次 forward 的总 token 数，其实是"这个 step 里所有请求各自贡献的 token 数之和"：
+>
+> ```
+> 一次 forward 的 token 组成 =
+>     多个请求各自的 Decode token（每个只贡献 1 个）
+>   + 多个请求各自的 Prefill chunk（每个可能贡献几百~几千个）
+> ```
+>
+> 如果把上面的例子换成 A~E 全部处于 Decode 阶段，那合计只有 5 token，远小于 8192，根本不会触发这个限制。真正会让 `max_num_batched_tokens` 起作用的场景，几乎都是有 Prefill（或 Prefill+Decode 混合）参与的 step。这也是为什么该参数叫 `max_num_batched_tokens`（限制的是整个 batch 叠加后的总量），而不是限制单个请求。
+
+> 🤔 **追问**：那有没有可能纯 Decode 场景也刚好凑够 8192，撞到这个上限？
+>
+> **理论上可能，但现实中几乎不会先撞到这里，会先被别的限制拦住**：
+>
+> ```
+> 8192 个请求 × 1 token/请求（Decode）= 8192 token
+> → 数学上确实等于 max_num_batched_tokens=8192
+> ```
+>
+> 但在此之前，通常会先被以下两个限制拦住：
+>
+> 1. **`--max-num-seqs`（最大并发序列数）**：vLLM 还有一个参数专门限制同时处理的请求数量。比如日志里 `max_num_seqs=3`，意味着同一时刻最多只有 3 个请求在跑，根本凑不到 8192 个并发。
+> 2. **KV Cache 显存容量**：想让 8192 个请求同时处于 Decode 阶段，KV Cache 必须能装下这 8192 个请求各自的历史 K、V，这个显存需求通常是几十上百 GB 起步，远超单卡甚至多卡显存。比如日志里 `GPU KV cache size: 21,056 tokens`，`max_model_len=7250` 时最多只能撑 2.9 个并发，离 8192 差了几个数量级。
+>
+> 一个类比：
+>
+> ```
+> max_num_batched_tokens  → 餐厅每一轮上菜最多端 8192 道菜（计算上限）
+> max_num_seqs            → 餐厅同时最多接待 3 桌客人（并发上限）
+> KV Cache 显存            → 餐厅仓库最多备 21,056 份食材（显存上限）
+>
+> 想让"端菜数"撞到 8192 上限，前提是先凑齐 8192 桌客人同时点餐
+> 但餐厅最多只能接待 3 桌 → 根本凑不齐这个数
+> ```
+>
+> 只有在**并发量特别大、KV Cache 也配得很大**（如多卡大显存、`max_num_seqs` 调到几百上千，常见于短输入短输出的高并发场景）时，纯 Decode 才有可能撞到 `max_num_batched_tokens`。实践中更常见的做法是让 `max_num_batched_tokens` 明显大于 `max_num_seqs`，这样 Decode 阶段的 token 总数（约等于并发数）通常远小于上限，真正吃满上限的还是 Prefill 阶段。
 
 ---
 
@@ -189,18 +234,61 @@ step4 → 生成 "无效图"      (处理 1 个 token)
 
 ```
 配置: chunked_prefill_enabled=True, max_num_batched_tokens=2048
+（B 全程在 Decode，每个 step 占 1 个 token 的预算，剩下 2047 才是留给 A 的 Prefill 预算）
 
 时间线：
-step1: [请求A Prefill 前 2048 token ████] + [请求B Decode token1]
-step2: [请求A Prefill 中 2048 token ████] + [请求B Decode token2]
-step3: [请求A Prefill 后 1904 token ███ ] + [请求B Decode token3]
-step4: [请求A Decode token1]              + [请求B Decode token4]
+step1: [请求A Prefill 前 2047 token ████] + [请求B Decode token1]  = 2048 ✅
+step2: [请求A Prefill 中 2047 token ████] + [请求B Decode token2]  = 2048 ✅
+step3: [请求A Prefill 后 1906 token ███ ] + [请求B Decode token3]  = 1907 ✅（A 的 6000 token 已处理完）
+step4: [请求A Decode token1]              + [请求B Decode token4]  = 2   ✅
 ```
+
+> 注意：每个 step 里，A 的 Prefill chunk + B 的 Decode token 之和**不能超过** `max_num_batched_tokens`。因为 B 一直占着 1 个名额，A 每次只能拿到 `2048 - 1 = 2047` 个 token，而不是整整 2048——这也是 Chunked Prefill 调度器实际做的事：先满足所有 Decode 请求（保证已经在生成的请求不被饿死），剩下的预算才分给 Prefill。
 
 **好处**：
 - ✅ 请求 B 不用等请求 A 的 Prefill 全部完成
 - ✅ 每个 step 的 token 数不超过 2048，激活值峰值可控
 - ✅ 整体吞吐量更高
+
+---
+
+### Prefill 阶段一般需要多少次 forward？
+
+**不开 Chunked Prefill（或输入长度 < max_num_batched_tokens）**：1 次 forward 就能完成。因为 Prefill 的 token 全部已知，可以在 Attention 里并行计算，理论上"一口吃下"：
+
+```
+输入 6000 token，max_num_batched_tokens = 8192
+6000 < 8192，一次就能装下 → 1 次 forward 完成整个 Prefill
+```
+
+**开启 Chunked Prefill（vLLM 默认行为），输入超过 max_num_batched_tokens**：会被切成多个 chunk，分摊到多个 step：
+
+```
+forward 次数 ≈ ceil(输入总 token 数 / 每个 step 分给该请求的 chunk 大小)
+
+例：max_num_batched_tokens = 2048，输入 6000 token（无并发抢占时）
+ceil(6000 / 2048) = 3 次
+
+step1: Prefill chunk1 [token 0~2047]    → 2048 token
+step2: Prefill chunk2 [token 2048~4095] → 2048 token
+step3: Prefill chunk3 [token 4096~5999] → 1904 token
+→ 3 次 forward 才能完成这一个请求的 Prefill
+```
+
+**多个请求并发时**：`max_num_batched_tokens` 这个预算不会被一个请求独占，还要给其他请求的 Decode token 留位置，所以实际能分给 Prefill 的 chunk 会更小，次数可能略增：
+
+```
+假设 max_num_batched_tokens = 2048，当前有 3 个请求正在 Decode（各占 1 token）
+→ 剩余可用于新请求 Prefill 的 budget = 2048 - 3 = 2045
+
+请求F 输入 6000 token：
+step1: [3个Decode token] + [F的Prefill chunk 2045 token] = 2048
+step2: [3个Decode token] + [F的Prefill chunk 2045 token] = 2048
+step3: [3个Decode token] + [F的剩余 1910 token]           = 1913
+→ 依然接近 3 次，但因为要分摊给别的请求，次数可能比理想值略多
+```
+
+> 💡 **一句话**：Prefill 的 forward 次数取决于「输入长度」和「`max_num_batched_tokens` 减去并发占用后剩余的 budget」的比值，budget 越大、并发 Decode 请求越少，Prefill 完成得越快。
 
 ---
 
@@ -218,30 +306,61 @@ step4: [请求A Decode token1]              + [请求B Decode token4]
 Capturing CUDA graphs (mixed prefill-decode, PIECEWISE)
 ```
 
-### CUDA Graph 简介
+### CUDA Graph 简介（先抛开术语，从生活化例子理解）
 
-**没有 CUDA Graph 时**：CPU 每个 step 都要反复向 GPU 发指令并等待响应，通信开销大。
+GPU 每次计算，CPU 都要发一堆"指令"给它，比如一层模型就有几十条指令（矩阵乘法、加法、激活函数……），几十层叠起来就是上千条：
 
-**有 CUDA Graph 时**：第一次把整个 step 的 GPU 指令录制成一张"图"，之后 CPU 只需说"执行这张图"，GPU 一气呵成，大幅降低 CPU-GPU 通信开销。
+**没有 CUDA Graph**：每条指令都是"CPU 发一条 → GPU 执行 → GPU 汇报执行完了 → CPU 再发下一条"，这一来一回的沟通本身就要花时间，哪怕 GPU 算得很快，沟通开销也不能忽略。
 
-### PIECEWISE（分段式 CUDA Graph）
+**用 CUDA Graph**：把这上千条指令**预先录好**，做成一份"剧本"。以后 CPU 只需要说一句"演这个剧本"，GPU 就按录好的顺序自己往下走，不用每一步都跟 CPU 请示汇报，省掉了大量来回沟通的时间。
 
-**问题**：CUDA Graph 只能捕获**固定 shape** 的计算：
-- Decode 阶段：每次只有 1 个新 token，shape 固定 → 好捕获 ✅
-- Prefill 阶段：每次 token 数不同，shape 动态 → 难捕获 ❌
+### PIECEWISE（分段式 CUDA Graph）到底是什么
 
-**PIECEWISE 解决方案**：把模型计算图切成两段分别处理：
+先抛开术语，从"为什么需要 CUDA Graph"讲起
+
+GPU 每次计算，CPU 都要发一堆"指令"给它，比如：
+
+指令1: 算矩阵乘法
+
+指令2: 算加法
+
+指令3: 算激活函数
+
+...（一个模型一层就有几十条指令，几十层叠起来就是上千条）
+
+没有 CUDA Graph：每条指令都是 CPU 现发一条、GPU 执行一条、再汇报"我执行完了"，然后 CPU 才发下一条。这个"发指令 → 等回复"的来回沟通，本身就要花时间（哪怕 GPU 算得很快，沟通开销也不能忽略）。
+
+用 CUDA Graph：把这上千条指令"预先录好"，做成一个"剧本"。以后 CPU 只需要说一句"演这个剧本"，GPU 就按录好的顺序自己往下走，不用每一步都跟 CPU 汇报请示。省掉了大量来回沟通的时间。
+
+**关键限制**：CUDA Graph 录的是"具体的操作步骤"，这些步骤是绑定"数据形状（shape）"的。剧本里录的是"处理 3 个 token 的计算"，下次来了 5 个 token，这份剧本就不适用了，得重新录。
+
+对照 Decode 和 Prefill 的 shape 特点：
 
 ```
-┌─────────────────────────────────┐
-│ Attention 部分（shape 动态）      │ → 不用 CUDA Graph，动态执行
-└─────────────────────────────────┘
-┌─────────────────────────────────┐
-│ FFN / 其他部分（shape 相对固定） │ → 用 CUDA Graph 捕获，快速执行 ⚡
-└─────────────────────────────────┘
+Decode 阶段：每次都是"1 个新 token 去查历史" → 形状永远是 1
+             → 形状固定，可以放心录成剧本 ✅
+
+Prefill 阶段：这次来 2000 个 token，下次来 1500 个，再下次 3800 个
+             → 形状每次都不一样，没法录成一个固定剧本 ❌
 ```
 
-所以叫 **PIECEWISE = 分段捕获**，不是整个 step 一张图。
+**PIECEWISE 的思路**：模型的一次计算其实是很多层"小模块"叠起来的（Attention 层、FFN 层……）。与其"整个模型录一个剧本，要么全录要么全不录"，不如**拆成一段一段（piece by piece），能录的段落单独录好，不能录的段落就照旧现场执行**：
+
+```
+一次 forward 拆成很多小段依次执行：
+
+段1: Attention 计算 ← Prefill 时 token 数不固定，shape 会变
+                      → 不录剧本，每次现场按需执行
+段2: FFN 计算       ← 跟 token 数关系不大，shape 相对固定
+                      → 提前录好剧本，直接播放，很快 ⚡
+段3: Attention 计算 ← 同段1，现场执行
+段4: FFN 计算       ← 同段2，播放剧本
+...（每一层重复这个模式）
+```
+
+所以 **PIECEWISE（分段式）** 的意思是：**不是"一整块 all-or-nothing"地用 CUDA Graph，而是把计算拆成一小块一小块，每一小块单独判断能不能用 CUDA Graph**——能用的地方享受加速，不能用的地方老实动态执行，两者混在同一次 forward 里。
+
+> 💡 一句话记忆：CUDA Graph 是"录好的剧本"，PIECEWISE 是"只把能录的片段录成剧本，剩下的照旧现场演"。它只是一个加速手段，跟要不要开 Chunked Prefill、会不会 OOM 没有直接关系，知道它是"能提速的地方提速，不能提速的地方正常算"这么个折中方案就够了。
 
 ### 日志解读
 

@@ -43,9 +43,22 @@ print(args.debug)    # True / False
 
 ---
 
-### 参数类型详解
+### 参数类型详解：Store 型 vs Flag 型（官方标准分类）
 
-#### 1. 普通参数（`--key value` 形式）
+`--` 开头的可选参数（optional arguments），按 **"是否需要接一个值"** 这个维度，官方分为两大类：
+
+| 分类 | `action` | 是否接值 | 例子 |
+|------|----------|---------|------|
+| **Store 型**（存值参数） | `action='store'`（默认，通常省略不写） | ✅ 是，必须接一个值 | `--input xxx`、`--batch_size 1000` |
+| **Flag 型**（标志/开关参数） | `action='store_true'` 或 `action='store_false'` | ❌ 否，单独出现即可 | `--resume`、`--debug` |
+
+> 这两套分类维度是**正交**的，可以叠加组合：一个脚本里可以同时有"必填的 store 型"（`required=True`）、"有默认值的 store 型"（`default=xxx`）、"flag 型"（`action='store_true'`），彼此互不冲突。
+
+#### 一、Store 型（存值参数）—— 参数后面必须跟一个值
+
+这是最常见的形式，argparse 把这个值存起来，默认行为就是 `action='store'`（平时都省略不写）。
+
+**1. 普通 store 参数（`--key value` 形式）**
 
 ```python
 parser.add_argument("--lr", type=float, default=1e-4, help="学习率")
@@ -63,7 +76,91 @@ python train.py --lr 0.001
 | `default=1e-4` | 不传时的默认值 |
 | `help="..."` | `python train.py --help` 时显示的说明 |
 
-#### 2. 开关型参数（有就是 True，没有就是 False）
+**2. 必填 vs 有默认值 —— store 型内部的细分**
+
+store 型参数内部还可以按"是否必填"再分一层，区别在于给 `required=True` 还是 `default=xxx`：
+
+```python
+parser.add_argument("--input",      required=True)              # 必填，不传会报错
+parser.add_argument("--batch_size", type=int, default=1000)     # 选填，不传用默认值
+```
+
+> ⚠️ **`required=True` 和 `default=xxx` 不要同时写，两者语义矛盾**：`required=True` 意味着"不传就报错"，`default` 意味着"不传就用默认值兜底"，二者互斥。同时写的话，argparse 不会报语法错，但 `default` 是死代码永远用不上——不传参时 `required=True` 会先拦截并报错，根本走不到用默认值兜底那一步；传参时又用的是传入值，也用不上默认值。正确做法是二选一：
+>
+> ```python
+> # 必填，不给默认值
+> parser.add_argument("--input", required=True)
+>
+> # 选填，给默认值
+> parser.add_argument("--input", default="data.json")
+> ```
+
+**`required` 和 `default` 都不写会怎样？**
+
+```python
+parser.add_argument("--output_dir", type=str, help="输出目录")
+```
+
+- **`required` 的隐藏默认值是 `False`**：不写 `required` 就相当于 `required=False`，这个参数是**选填**的，不传不会报错
+- **`default` 的隐藏默认值是 `None`**：不写 `default` 就相当于 `default=None`，不传时 `args.output_dir` 的值会是 `None`，而不是空字符串或其他值
+
+验证：
+
+```python
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--output_dir", type=str, help="输出目录")
+args = parser.parse_args([])   # 模拟不传任何参数
+print(args.output_dir)          # None
+print(type(args.output_dir))    # <class 'NoneType'>
+```
+
+三种情况完整对比：
+
+| 写法 | 不传时的值 | 不传会报错吗 |
+|------|-----------|------------|
+| `add_argument("--x")`（什么都不写） | `None` | ❌ 不会 |
+| `add_argument("--x", default="abc")` | `"abc"` | ❌ 不会 |
+| `add_argument("--x", required=True)` | 不适用 | ✅ 会报错：`error: the following arguments are required: --x` |
+
+**3. 位置参数（不带 `--`，按顺序传入）**
+
+位置参数本质上也是 store 型的一种（同样必须接一个值），只是不用 `--` 前缀，靠顺序传入：
+
+```python
+parser.add_argument("input_file", type=str, help="输入文件路径")
+```
+
+```bash
+python train.py data.json      # args.input_file = "data.json"
+```
+
+> 位置参数是必填的，不填会报错。`--` 开头的参数是否必填取决于有没有写 `required=True`。
+
+**4. 多值参数（一次传多个值）**
+
+```python
+parser.add_argument("--gpus", nargs="+", type=int, help="GPU编号列表")
+```
+
+```bash
+python train.py --gpus 0 1 2   # args.gpus = [0, 1, 2]
+```
+
+**5. 选项限定（只能从几个值里选）**
+
+```python
+parser.add_argument("--mode", choices=["train", "eval", "infer"], default="train")
+```
+
+```bash
+python train.py --mode eval    # ✅
+python train.py --mode abc     # ❌ 报错
+```
+
+#### 二、Flag 型（标志/开关参数）—— 不需要接值
+
+参数本身出现与否就是信息，对应 `action='store_true'`（或反过来的 `action='store_false'`）：
 
 ```python
 parser.add_argument("--debug", action="store_true", help="开启调试模式")
@@ -74,38 +171,26 @@ python train.py --debug        # args.debug = True
 python train.py                # args.debug = False（默认）
 ```
 
-#### 3. 位置参数（不带 `--`，按顺序传入）
+用的时候只写 `--debug` 四个字，后面不接任何值；出现了就是 `True`，不出现就是 `False`（默认值）。
 
 ```python
-parser.add_argument("input_file", type=str, help="输入文件路径")
+parser.add_argument("--resume", action="store_true", default=False)
 ```
 
 ```bash
-python train.py data.json      # args.input_file = "data.json"
+python train.py --resume       # args.resume = True
+python train.py                # args.resume = False
 ```
 
-> 位置参数是必填的，不填会报错。`--` 开头的参数通常有默认值，可以不填。
+> 如果想要"默认是 True，加了参数才关闭"的反向开关，用 `action='store_false'`：
+> ```python
+> parser.add_argument("--no_shuffle", action="store_false", dest="shuffle")
+> # 不传 --no_shuffle 时 args.shuffle = True；传了 --no_shuffle 时 args.shuffle = False
+> ```
 
-#### 4. 多值参数（一次传多个值）
+#### 一句话区分
 
-```python
-parser.add_argument("--gpus", nargs="+", type=int, help="GPU编号列表")
-```
-
-```bash
-python train.py --gpus 0 1 2   # args.gpus = [0, 1, 2]
-```
-
-#### 5. 选项限定（只能从几个值里选）
-
-```python
-parser.add_argument("--mode", choices=["train", "eval", "infer"], default="train")
-```
-
-```bash
-python train.py --mode eval    # ✅
-python train.py --mode abc     # ❌ 报错
-```
+> 之前讲的"必填 vs 有默认值"，其实都属于 **store 型内部的细分**（区别在于给不给 `required=True` 还是 `default=xxx`）；而 **flag 型是跟它们平行的另一条分类线**（区别在于 `action`）。一个脚本里的多个 store 型参数（有必填也有默认值）和 flag 型参数可以同时出现，刚好把这几种组合都占全了。
 
 ---
 

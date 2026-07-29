@@ -715,7 +715,106 @@ reserved - allocated = PyTorch 缓存池（预留但未被占用）
 
 ---
 
-### 6.13 指标总览与记忆口诀
+### 6.13 Batch 相关参数详解（train_batch_size / rollout.n / mini_batch / micro_batch）
+
+以一个真实的单卡 A100 训练脚本配置为例：
+
+```bash
+ROLLOUT_N=4                # 每个 prompt 生成 4 个 response（用于 GRPO 对比）
+TRAIN_BATCH_SIZE=4         # 保守用 4，避免 backward OOM
+MINI_BATCH_SIZE=4
+MICRO_BATCH_SIZE=1         # backward 显存峰值主要由此决定，用 1 最省
+LOG_PROB_MICRO_BATCH=2     # 计算 log prob 时的 micro batch
+```
+
+对应到实际传给 `main_ppo` 的参数：
+
+| 脚本变量 | 对应的 verl config 字段 |
+|---------|------------------------|
+| `ROLLOUT_N` | `actor_rollout_ref.rollout.n` |
+| `TRAIN_BATCH_SIZE` | `data.train_batch_size` |
+| `MINI_BATCH_SIZE` | `actor_rollout_ref.actor.ppo_mini_batch_size` |
+| `MICRO_BATCH_SIZE` | `actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu` |
+| `LOG_PROB_MICRO_BATCH` | `ref.log_prob_micro_batch_size_per_gpu` 和 `rollout.log_prob_micro_batch_size_per_gpu` |
+
+#### ① `train_batch_size`（`data.train_batch_size` = 4）
+
+每个训练 step 从 dataloader 里取出的 **prompt 数量**（不是最终样本数）。这里是 4 个 prompt。
+
+#### ② `rollout.n`（`actor_rollout_ref.rollout.n` = 4）
+
+对每个 prompt，vLLM 采样生成多少条不同的 response。这是 GRPO 算法的核心——同一个 prompt 采样出一组（group）response，靠组内的 reward 差异做相对比较（z-score 标准化）来算 advantage，而不像 PPO 需要单独的 critic 网络打分。
+
+所以一个 step 实际产生的训练样本总数是：
+
+```
+train_batch_size × rollout.n = 4 × 4 = 16 条 response
+```
+
+这 16 条会被分成 4 组（每组对应同一个 prompt 的 4 条 rollout），组内做 GRPO 的 reward 归一化（详见 [6.6 Advantages](#66-advantages优势值)）。
+
+#### ③ `ppo_mini_batch_size`（`actor.ppo_mini_batch_size` = 4）
+
+PPO/GRPO 训练阶段，把上面这 16 条样本切分成若干个 mini-batch 做梯度更新（PPO 类算法通常对同一批 rollout 数据做多轮/多次 mini-batch 更新，这里 `ppo_epochs` 默认为 1）。
+
+```
+16 条样本 ÷ mini_batch_size=4 = 4 次梯度更新（4 个 optimizer.step()）
+```
+
+也就是说，一次 rollout 采集后，会切成 4 个 mini-batch，依次做 4 次反向传播 + 参数更新。
+
+#### ④ `ppo_micro_batch_size_per_gpu`（`actor.ppo_micro_batch_size_per_gpu` = 1）
+
+每个 mini-batch 在真正做 forward/backward 时，还会进一步按 **每张 GPU** 切成更小的 micro-batch，用梯度累积（gradient accumulation）的方式凑够 mini_batch_size，避免一次性把整个 mini-batch 塞进显存导致 OOM。
+
+```
+mini_batch_size=4 ÷ micro_batch_size=1 = 4 次梯度累积，累积够了才 step 一次
+```
+
+这个是显存占用最直接的控制阀——**backward 时显存峰值主要由 micro_batch_size 决定**，设成 1 意味着一次只有 1 条样本参与 forward + backward，最省显存，代价是速度较慢（更多次数的小 forward/backward，且 GPU 利用率较低）。
+
+#### ⑤ `log_prob_micro_batch_size_per_gpu`（= 2）
+
+这个不是训练（backward）阶段用的，而是**只做前向推理**（forward-only，不需要反向传播）时的 batch 切分粒度，用在两个地方：
+
+- `actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu`：reference 模型算 log prob（用于算 KL 散度）
+- `actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu`：rollout（生成完后）重新算旧策略的 log prob
+
+因为只有 forward、没有 backward，不需要保存反向传播用的中间激活，显存压力比训练阶段小很多，所以这里可以比 `ppo_micro_batch_size_per_gpu`（=1）设得更大（=2），用更大的 batch 加速这部分前向计算。
+
+#### 参数间的层级关系总结
+
+```
+data.train_batch_size (4 个 prompt)
+  × rollout.n (每个 prompt 采样 4 条 response)
+  ────────────────────────────────
+  = 16 条 rollout 样本（一次 PPO/GRPO 更新的全部数据）
+
+        │
+        ├─ 切成 mini_batch（每个 4 条）→ 16/4 = 4 次梯度更新
+        │       │
+        │       └─ 每个 mini_batch 再按 micro_batch（每个 1 条，per GPU）
+        │           做梯度累积 forward+backward → 4 次累积凑够 1 次 mini_batch
+        │
+        └─ 算 log_prob（forward-only，ref 模型 & rollout 旧策略）时
+            按 log_prob_micro_batch（每个 2 条）切分，不参与 backward，可以切大一点
+```
+
+#### 一句话概括各参数在管什么
+
+| 参数 | 作用 |
+|------|------|
+| `train_batch_size` | 一个 step 采多少个 prompt |
+| `rollout.n` | GRPO 每个 prompt 采几条 response 组成对比组（组内做 reward 归一化） |
+| `ppo_mini_batch_size` | 把这批 rollout 数据切成几份分别做梯度更新（对应几次 `optimizer.step()`） |
+| `ppo_micro_batch_size_per_gpu` | 每份 mini_batch 内，单张 GPU 一次 forward+backward 真正处理几条（梯度累积粒度，决定训练时显存峰值） |
+| `log_prob_micro_batch_size_per_gpu` | 单纯算 log prob（forward-only，无梯度）时的 batch 粒度，显存压力小，可以设更大 |
+
+> 💡 **配置思路**：单卡显存有限（且开了 gradient checkpointing + FSDP param/optimizer offload）时，整体应偏保守/省显存——`train_batch_size` 和 `ppo_mini_batch_size` 都设小，backward 阶段的 `micro_batch` 压到 1（最省显存但最慢），而无需反向传播的 `log_prob_micro_batch` 则可以放宽一些来换取速度。
+
+---
+
+### 6.14 指标总览与记忆口诀
 
 | 指标 | 前缀 | 正常范围 | ⚠️ 危险信号 |
 |------|------|---------|------------|

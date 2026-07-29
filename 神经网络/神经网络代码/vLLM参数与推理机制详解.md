@@ -296,7 +296,7 @@ step3: [3个Decode token] + [F的剩余 1910 token]           = 1913
 
 ### mixed prefill-decode
 
-这是 Chunked Prefill 的直接体现：开启 Chunked Prefill 后，一个 step 里可以**同时包含** Prefill chunk 和 Decode token，即"混合执行"。
+这是 Chunked Prefill 的直接体现：开启 Chunked Prefill 后，调度器**被允许**把一个 step 同时安排给 Prefill chunk 和 Decode token，即"混合执行"。
 
 ```
 日志：Chunked prefill is enabled with max_num_batched_tokens=2048
@@ -305,6 +305,21 @@ step3: [3个Decode token] + [F的剩余 1910 token]           = 1913
                 ↓
 Capturing CUDA graphs (mixed prefill-decode, PIECEWISE)
 ```
+
+> 🤔 **追问**：不开 Chunked Prefill 就一定不会 mixed？如果 `max_num_batched_tokens` 设得够大，是不是也能 mixed？
+>
+> **关键点在于"调度规则"，而不是"budget 大小"**：
+>
+> - **不开 Chunked Prefill**：调度规则规定"一个请求的 Prefill 必须一次性、独占一个 step 做完，中途不能被打断、也不能塞入别的请求"。哪怕 `max_num_batched_tokens` 设置得非常大，这个 step 依然只会是纯 Prefill 或纯 Decode，**天生不可能 mixed**——不是因为 budget 不够，而是规则本身不允许混。
+> - **开启 Chunked Prefill**：调度规则变成"允许把 Prefill 切块，见缝插针地跟 Decode 混进同一个 step"。但即便开了，也**不代表每个 step 都一定会 mixed**——如果当前系统里只有 Prefill 请求（还没有请求进入 Decode 阶段）或者只有 Decode 请求（没有新请求在排队做 Prefill），这个 step 依然是纯的，不会 mixed。
+>
+> 所以更准确的说法是：
+>
+> ```
+> 开启 Chunked Prefill        → 只是"解锁"了 mixed 的可能性（调度规则允许了）
+> 是否真的发生 mixed          → 取决于当前是否同时存在"待 Prefill"和"正在 Decode"的请求
+> max_num_batched_tokens 大小 → 只决定 mixed 时这个 step 能装多少 token，不决定能不能 mixed
+> ```
 
 ### CUDA Graph 简介（先抛开术语，从生活化例子理解）
 
@@ -316,17 +331,13 @@ GPU 每次计算，CPU 都要发一堆"指令"给它，比如一层模型就有�
 
 ### PIECEWISE（分段式 CUDA Graph）到底是什么
 
-先抛开术语，从"为什么需要 CUDA Graph"讲起
+**先抛开术语，从"为什么需要 CUDA Graph"讲起**
 
 GPU 每次计算，CPU 都要发一堆"指令"给它，比如：
-
-指令1: 算矩阵乘法
-
-指令2: 算加法
-
-指令3: 算激活函数
-
-...（一个模型一层就有几十条指令，几十层叠起来就是上千条）
+- 指令1: 算矩阵乘法
+- 指令2: 算加法
+- 指令3: 算激活函数
+- ...（一个模型一层就有几十条指令，几十层叠起来就是上千条）
 
 没有 CUDA Graph：每条指令都是 CPU 现发一条、GPU 执行一条、再汇报"我执行完了"，然后 CPU 才发下一条。这个"发指令 → 等回复"的来回沟通，本身就要花时间（哪怕 GPU 算得很快，沟通开销也不能忽略）。
 
@@ -334,7 +345,7 @@ GPU 每次计算，CPU 都要发一堆"指令"给它，比如：
 
 **关键限制**：CUDA Graph 录的是"具体的操作步骤"，这些步骤是绑定"数据形状（shape）"的。剧本里录的是"处理 3 个 token 的计算"，下次来了 5 个 token，这份剧本就不适用了，得重新录。
 
-对照 Decode 和 Prefill 的 shape 特点：
+**对照 Decode 和 Prefill 的 shape 特点：**
 
 ```
 Decode 阶段：每次都是"1 个新 token 去查历史" → 形状永远是 1
@@ -367,6 +378,12 @@ Prefill 阶段：这次来 2000 个 token，下次来 1500 个，再下次 3800 
 ```
 Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 0/3 → 1/3 → 2/3 → 3/3
 ```
+
+**为什么要按 batch_size 分别录，而不是按"段"分？**
+
+回顾一下之前讲的：CUDA Graph 要求 shape 固定。这里的"shape"不仅指 token 数，还包括同时处理几个请求（batch_size）——batch_size=4 和 batch_size=1 是两种不同的输入形状，各自要单独录一份剧本，运行时来了几个并发请求，就播放对应那张图。
+
+而"分段（PIECEWISE）"说的是另一件事：每一张图内部，也不是把模型从头到尾整个录成一张图，而是把 Attention 部分摘出来动态算、把 FFN 等部分录成图——这是"横向"上对模型结构的切分，跟"纵向"上按 batch_size 录 3 张图是两个不同维度的概念，可以同时存在：
 
 捕获了 3 张图，对应配置 `cudagraph_capture_sizes: [4, 2, 1]`，即 batch_size = 4、2、1 时各一张图：
 

@@ -760,6 +760,73 @@ zero_grad → 清零 .grad
 
 ---
 
+### 追问：先分别对每个样本 backward，再手动平均，可以吗？
+
+**数学上完全等价**，梯度是线性算子，求和与求导可以交换顺序：
+
+$$\frac{\partial}{\partial\theta}\left[\frac{\ell_1+\ell_2+\ell_3}{3}\right] = \frac{1}{3}\left[\frac{\partial \ell_1}{\partial\theta}+\frac{\partial \ell_2}{\partial\theta}+\frac{\partial \ell_3}{\partial\theta}\right]$$
+
+左边是"先平均再求导"（`loss.mean().backward()` 的写法），右边是"先分别求导再平均"（分别 backward 再手动处理）。两者结果一模一样。
+
+**在 PyTorch 里怎么落地：关键在于 `.grad` 本身就是累加的**
+
+```python
+# 写法一：提前把每个样本的 loss 除以 N，再分别 backward（标准的梯度累积写法）
+N = 3
+for i in range(N):
+    loss_i = compute_loss(sample_i) / N     # 关键：提前除以 N
+    loss_i.backward()                        # 每次调用，梯度自动累加到 .grad
+
+# 三次累加后：
+# theta.grad = ∂(ℓ1/N)/∂θ + ∂(ℓ2/N)/∂θ + ∂(ℓ3/N)/∂θ
+#            = (1/N)(∂ℓ1/∂θ + ∂ℓ2/∂θ + ∂ℓ3/∂θ)
+#            = 和 loss.mean().backward() 得到的梯度完全一样 ✅
+optimizer.step()
+optimizer.zero_grad()
+```
+
+**⚠️ 容易踩的坑：忘记提前除以 N**
+
+```python
+loss_i = compute_loss(sample_i)   # 没有除以 N
+loss_i.backward()                  # 重复 N 次
+
+# theta.grad = ∂ℓ1/∂θ + ∂ℓ2/∂θ + ∂ℓ3/∂θ   ← 这是 sum，不是 mean！
+# 相当于变相把学习率放大了 N 倍，训练容易不稳定
+```
+
+`.backward()` 只会把梯度**累加**到 `.grad`，不会自动帮你取平均，所以要么提前把每份 loss 除以累积步数，要么在最后统一 `optimizer.step()` 之前手动 `param.grad /= N`。
+
+**这正是"梯度累积（Gradient Accumulation）"的数学基础**：只要梯度可加，"一次性对整个大 batch 求平均再 backward" 和 "拆成多个小 batch 分别 backward、梯度自动累加" 两种做法数学上完全等价——区别只在于工程实现：前者一次 forward 把所有样本打包成一个大矩阵做批量并行计算（快，但吃显存）；后者拆成多次小的 forward/backward 串行执行（省显存，但慢），是用时间换空间。
+
+---
+
+### 追问：这里的"计算图"和 vLLM 推理加速用的 CUDA Graph 是一回事吗？
+
+**不是，只是都叫"图"，层次完全不同**：
+
+| | **反向传播的计算图**（Autograd Graph） | **CUDA Graph** |
+|---|---|---|
+| 是什么图 | 数学上的"依赖关系图"：记录 loss 是怎么从参数 θ 一步步算出来的，用来做链式法则求导 | 硬件层面的"指令录像"：记录 GPU 要执行的一串具体指令，用来跳过 CPU-GPU 反复通信的开销 |
+| 节点是什么 | 张量运算（矩阵乘法、softmax、log 等数学操作） | GPU 的具体执行指令（kernel launch） |
+| 谁在用它 | PyTorch 的 `autograd` 引擎，为了算梯度 | CUDA 运行时 / vLLM 推理引擎，为了加速执行、减少调度开销 |
+| 存在阶段 | 只在训练时才需要（要 backward 求梯度） | 训练、推理都能用（vLLM 推理时用它加速 Decode） |
+| 图的动态性 | 每次 forward 都重新建一次图（PyTorch 是动态图），forward 完可以扔掉 | 图录制一次可以反复回放很多次（只要输入 shape 不变） |
+| 和 shape 的关系 | 不太在意 shape，只关心"数据依赖顺序" | 严格要求 shape 固定，shape 一变就得重新录制 |
+
+一句话区分：
+
+```
+Autograd 计算图 = "这个数是怎么从参数一步步算出来的"（数学依赖关系）→ 用来求导
+CUDA Graph      = "GPU 具体要执行哪几条指令、按什么顺序"（硬件执行指令）→ 用来加速
+```
+
+类比：Autograd 计算图像是一份"菜谱的配料依赖表"，记录"先炒葱姜、再加肉、再加酱油"这种先后依赖关系，用来推算"肉多放一点，最终味道会变化多少"（对应求梯度）；CUDA Graph 更像是"提前把整套炒菜动作录成视频"，不关心为什么这么做，下次遇到同样的菜（同样的 shape）直接放视频快进执行。两者都叫"图"，但一个是为了求导的数学工具，一个是为了省调度开销的工程优化手段，彼此没有直接联系。
+
+> 关联笔记：CUDA Graph / PIECEWISE 在 vLLM 推理里的具体应用，见 [vLLM参数与推理机制详解 · mixed prefill-decode 与 PIECEWISE](../神经网络代码/vLLM参数与推理机制详解.md)。
+
+---
+
 ## 九、Batch 梯度的本质
 
 每个样本定义一个关于 $\theta$ 的函数（$x_i, y_i$ 是常数，$\theta$ 是变量）：

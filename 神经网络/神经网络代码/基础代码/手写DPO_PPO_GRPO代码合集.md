@@ -96,7 +96,7 @@ class PPO:
 - **`mask_mean`**：LLM 场景下序列长度不一致，需要用 `act_mask` 屏蔽 padding 部分，只对真实生成的 token 计算均值
 - **`advantage_estimate`（GAE）**：
   - `delta` 是单步 TD 误差：`reward + γ·V(下一步) - V(当前步)`
-  - `gae` 用 `λ` 做指数加权递归累加，是"单步 TD"和"蒙特卡洛回报"之间的平滑折中（`λ=0` 退化为单步 TD，`λ=1` 退化为蒙特卡洛）
+  - `gae` 用 `λ` 做指数加权递归累加，是"单步 TD"和"蒙特卡洛回报"之间的平滑折中（`λ=0` 退化为单步 TD，`λ=1` 退化为蒙特卡洛，完整的代数推导见 [GRPO与PPO算法详解 · GAE 的两个极端：λ=0 是单步 TD，λ=1 是蒙特卡洛](../../深度学习/GRPO与PPO算法详解.md#gae-的两个极端λ0-是单步-tdλ1-是蒙特卡洛)）
   - 循环必须**从后往前**算，因为 `gae` 的递推依赖后一步的结果
   - `returns = advantages + values`：还原出真实的目标回报，用于训练 Critic
 - **`policy_loss`（PPO-Clip 核心）**：

@@ -1,5 +1,9 @@
 # vLLM 参数与推理机制详解
 
+> 关联笔记：
+> - 日志里"理论最大并发数"的具体计算过程、为什么实际并发经常远超理论值、显存/算力两个维度如何综合分析 → [vLLM并发估算与显存-算力综合分析](vLLM并发估算与显存-算力综合分析.md)
+> - vLLM 除 HTTP API 外的调用方式、为什么都兼容 OpenAI 协议、LangChain tool calling 兼容性排查 → [vLLM调用方式与OpenAI协议生态](vLLM调用方式与OpenAI协议生态.md)
+
 ## 三句话总结
 
 **`max_num_batched_tokens`**：一次 forward（一个 step）里，所有请求（不管是在 Prefill 还是 Decode）加起来最多能处理的 token 总数上限，控制的是"这一步计算量有多大"，直接决定显存里激活值的峰值大小。
@@ -224,6 +228,36 @@ step4 → 生成 "无效图"      (处理 1 个 token)
 
 > ⚠️ **注意**：缓存的 KV Cache 占显存，若淘汰不及时，会导致显存持续增长。
 
+### Prefix Cache 只能命中 Prompt（输入）部分，不可能命中 Decode（输出）部分
+
+这里必须说清楚、不能模糊：**Prefix Cache 复用的，永远只是"请求输入侧"（即 Prefill 阶段要处理的 token），不涉及"请求输出侧"（即 Decode 阶段生成出来的 token）**。原因是两者的本质完全不同：
+
+```
+输入（Prompt）部分：
+  system prompt、few-shot 示例、用户问题的前半段等
+  → 这些内容是"发请求之前就已经写死、确定"的文本
+  → 不同请求之间，只要这段文本字符完全一样，算出来的 K、V 就一定完全一样
+  → 才有可能被复用（命中 Prefix Cache）
+
+输出（Decode）部分：
+  模型自己一个 token 一个 token 生成出来的内容
+  → 是"请求发生之后才产生"的结果，且每次生成都依赖当前采样参数（temperature/top_p等）、
+    随机种子、以及此前所有输入内容
+  → 哪怕两个请求的输入一模一样，只要采样带随机性，生成出来的内容大概率也不同
+  → 天然不可能存在"预先算好、可以复用"的这么一份东西
+```
+
+一句话说清楚这个边界：
+
+```
+Prefix Cache 命中的对象 = 之前某次请求 Prefill 阶段算出来、且已经存在 KV Cache 里的"输入 token"的 K、V
+
+它命中的范围仅限于："当前这次请求的输入 prompt" 与 "历史上某次请求的输入 prompt" 在前缀上逐字符相同的那一段
+它绝不会、也不可能去命中任何请求"生成出来的回复内容"，因为生成内容本身就是每次运算的结果，不是可复用的"静态输入"
+```
+
+也正因为如此，Prefix Cache 的命中率统计（`Prefix cache hit rate`）衡量的永远是 **prompt token 的命中比例**，和这次请求最终生成了多少个 token、生成得快不快没有任何关系。
+
 ---
 
 ### Chunked Prefill（分块预填充）
@@ -308,10 +342,10 @@ Capturing CUDA graphs (mixed prefill-decode, PIECEWISE)
 
 > 🤔 **追问**：不开 Chunked Prefill 就一定不会 mixed？如果 `max_num_batched_tokens` 设得够大，是不是也能 mixed？
 >
-> **关键点在于"调度规则"，而不是"budget 大小"**：
+> **关键点在于"调度规则"，而不是"budget 大小"**，而且这条规则限制的是"**类型不能混**"，不是"**数量不能多**"：
 >
-> - **不开 Chunked Prefill**：调度规则规定"一个请求的 Prefill 必须一次性、独占一个 step 做完，中途不能被打断、也不能塞入别的请求"。哪怕 `max_num_batched_tokens` 设置得非常大，这个 step 依然只会是纯 Prefill 或纯 Decode，**天生不可能 mixed**——不是因为 budget 不够，而是规则本身不允许混。
-> - **开启 Chunked Prefill**：调度规则变成"允许把 Prefill 切块，见缝插针地跟 Decode 混进同一个 step"。但即便开了，也**不代表每个 step 都一定会 mixed**——如果当前系统里只有 Prefill 请求（还没有请求进入 Decode 阶段）或者只有 Decode 请求（没有新请求在排队做 Prefill），这个 step 依然是纯的，不会 mixed。
+> - **不开 Chunked Prefill**：调度规则规定"一个请求的 Prefill 必须一次性、在一个 step 里做完，不能切块拆到多个 step"，也就是**同一个请求**的 Prefill 不能被打断。但这**不妨碍同一个 step 里塞入多个不同请求的 Prefill**——只要这些请求都还没进入 Decode 阶段、且 token 总数不超过 `max_num_batched_tokens`，是可以"横向"拼在一起、一次 forward 批量算完的（batched prefill）。这个 step 依然是"纯 Prefill"（因为没有 Decode 请求混进来），但可以包含多个请求。真正不允许的是"**纵向**"混合——同一个 step 里，既有请求在做 Prefill，又有请求在做 Decode，这种"两种类型混搭"哪怕 `max_num_batched_tokens` 设置得非常大也**不会发生**，因为规则本身不允许，不是 budget 不够。
+> - **开启 Chunked Prefill**：调度规则变成"允许把 Prefill 切块，见缝插针地跟 Decode 混进同一个 step"，这时才真正解锁"纵向"混合（mixed prefill-decode）。但即便开了，也**不代表每个 step 都一定会 mixed**——如果当前系统里只有 Prefill 请求（还没有请求进入 Decode 阶段）或者只有 Decode 请求（没有新请求在排队做 Prefill），这个 step 依然是纯的，不会 mixed。
 >
 > 所以更准确的说法是：
 >

@@ -511,7 +511,98 @@ GRPO 流程：
 
 ---
 
-## 七、KL 散度惩罚项详解
+## 七、DAPO：对 GRPO 的四点改进
+
+> 关联笔记：DAPO 在"从统一视角看 policy-gradient 算法"总表中的定位，见 [MiniMind从0到1构建大模型 · 4.3.4](../神经网络代码/MiniMind从0到1构建大模型.md#434-从统一的视角看-policy-gradient-算法)。
+
+DAPO（**D**ecoupled Clip and Dynamic s**A**mpling **P**olicy **O**ptimization）是针对长链推理（long-CoT，如数学解题、代码推理）场景对 GRPO 做的四点改进，核心动机是解决 GRPO 在训练长推理任务时暴露出的几个具体问题：熵坍缩、无效样本浪费算力、长回答梯度信号被稀释、KL 约束限制探索。
+
+### 7.1 Clip-Higher（非对称裁剪）
+
+GRPO 沿用 PPO 的**对称** clip 区间：
+
+$$\text{clip}(r_t,\ 1-\varepsilon,\ 1+\varepsilon)$$
+
+DAPO 把上下界拆开，用两个独立的值：
+
+$$\text{clip}(r_t,\ 1-\varepsilon_{low},\ 1+\varepsilon_{high}), \quad \varepsilon_{low} < \varepsilon_{high}$$
+
+**动机**：$r_t = \pi_{new}/\pi_{old}$ 的分子 $\pi_{new}$ 本身受限于概率上限 1，所以 $r_t$ 的**理论可达上限**其实是 $1/\pi_{old}$：
+
+```
+π_old 很大（模型已自信）→ 1/π_old 接近 1 → r_t 本身涨不了多少，clip 上界宽不宽无所谓
+π_old 很小（冷门/探索性 token，但这次 advantage>0，说明选对了）
+  → 1/π_old 可以远大于 1（比如 π_old=0.05 时，1/π_old=20）
+  → 这种情况下，对称 clip 的 ε 会先把 r_t 摁死在一个很小的绝对增量上
+  → 值得被强化的"冷门但正确"token，一步能涨的幅度非常有限，学习效率低
+```
+
+DAPO 放宽 $\varepsilon_{high}$（如从 0.2 调到 0.28），让这类低概率、值得被强化的 token 能获得更大的单步提升空间，缓解策略分布过早收窄（熵坍缩）、维持探索能力。
+
+### 7.2 Dynamic Sampling（动态采样，过滤全对/全错组）
+
+GRPO 的 advantage 依赖组内标准化：
+
+$$\hat{A}_g = \frac{R_g - \text{mean}(\{R_1,\dots,R_G\})}{\text{std}(\{R_1,\dots,R_G\})}$$
+
+**问题**：如果某个 prompt 采样出的 $G$ 个回答 reward **全部相同**（全对或全错），则 $R_g - \text{mean} = 0$（甚至 $\text{std}=0$ 导致除零），这一组数据贡献不出任何有效梯度，等于白白浪费一次 rollout 的算力。
+
+**DAPO 的解法**：检测到全对/全错的组，直接丢弃并重新采样，直到凑够"组内有对有错"的有效样本再进入训练，让每个 batch 的梯度信号更稠密，训练效率更高。
+
+### 7.3 Token-Level Policy Gradient Loss（全局 token 级聚合，而非先按 response 平均）
+
+GRPO 的 loss 是**两层平均**：
+
+$$\mathcal{L}_{GRPO} = -\frac{1}{G}\sum_{g=1}^{G} \underbrace{\frac{1}{T_g}\sum_{t=1}^{T_g}(\cdots)}_{\text{先对第 } g \text{ 条 response 内部平均}}$$
+
+DAPO 改成**一层平均**，分母是整个 batch 里所有 response 的 token 总数：
+
+$$\mathcal{L}_{DAPO} = -\frac{1}{\sum_{g=1}^{G} T_g}\sum_{g=1}^{G}\sum_{t=1}^{T_g}(\cdots)$$
+
+**差异的本质**（数值例子：response A 长度 10，response B 长度 1000）：
+
+```
+GRPO：A内部先除以10，B内部先除以1000，两条response对总loss的整体贡献相等（各占50%）
+      → 但 B 内部单个 token 的权重只有 A 内部单个 token 权重的 1/100，长回答里每个 token 信号被严重稀释
+
+DAPO：统一除以 (10+1000)=1010，A、B 内部每个 token 权重完全相同
+      → 但由于 B 的 token 数量占绝对多数，B 整体上主导这次梯度更新（约占99%）
+```
+
+DAPO 把"公平"的定义从**"每条 response 公平"**改成**"每个 token 公平"**，让长 CoT 里的每一步推理都能获得和短回答同等力度的学习信号，更利于训练长程推理能力。
+
+### 7.4 Overlong Reward Shaping（去掉 ref-KL，改用长度惩罚处理截断样本）
+
+GRPO 显式包含 $-\beta \cdot \text{KL}(\pi_\theta \Vert \pi_{ref})$ 项，约束新策略不要偏离参考模型（通常是 SFT 模型）太远。
+
+**DAPO 直接去掉了这一项**：
+
+```
+动机：DAPO 面向的是长推理任务，往往需要模型探索原始 SFT 分布里完全没有的新行为
+     （如自我反思、回溯、多步验证）。保留 ref-KL 会把策略强行拉回 SFT 模型附近，
+     限制这类新推理范式的涌现空间。
+```
+
+同时，DAPO 针对"生成长度超过上限被截断"的样本单独设计了**平滑的长度惩罚**（而非简单地把截断样本判为 reward=0）：
+
+```
+如果直接把截断样本判错误：模型会学到"写得越长越容易被扣分"这个错误信号，
+                        反而不敢深入做长推理，与"鼓励长链推理"的目标自相矛盾
+DAPO 做法：给截断样本一个越接近截断长度惩罚越重的连续 reward 塑形，避免这种错误激励
+```
+
+### 7.5 四点改进速查表
+
+| 改进点 | GRPO 的痛点 | DAPO 的解法 |
+|---|---|---|
+| Clip-Higher | 对称 clip 限制了低概率 token 的单步提升幅度，加剧熵坍缩 | 非对称 clip，放宽上界 $\varepsilon_{high}$ |
+| Dynamic Sampling | 全对/全错组的 advantage≈0，白白浪费算力 | 动态过滤 + 重新采样，保证组内有对比性 |
+| Token-Level Loss | 先按 response 内部平均，长回答的 token 权重被稀释 | 全局所有 token 直接拉平算权重，长短回答一视同仁 |
+| Overlong Reward Shaping（去 ref-KL） | ref-KL 限制探索超出 SFT 分布的新推理模式；截断样本简单判错误给出错误信号 | 去掉 ref-KL 约束；对截断样本用平滑长度惩罚代替非0即1判断 |
+
+---
+
+## 八、KL 散度惩罚项详解
 
 > 关联笔记：KL 惩罚与熵正则共同承担的"防止策略更新过快/过度自信"作用，其跨学科（物理退火、化学平衡、信息论）根因与工程排查手段见 [熵崩塌：跨学科视角与GRPO工程实践](熵崩塌：跨学科视角与GRPO工程实践.md)。
 
@@ -694,7 +785,7 @@ min(r·A, clip·A)          β · KL
 
 ---
 
-## 八、梯度下降与反向传播
+## 九、梯度下降与反向传播
 
 ### Loss 是关于参数 θ 的 n 元函数
 
@@ -858,7 +949,7 @@ CUDA Graph      = "GPU 具体要执行哪几条指令、按什么顺序"（硬�
 
 ---
 
-## 九、Batch 梯度的本质
+## 十、Batch 梯度的本质
 
 每个样本定义一个关于 $\theta$ 的函数（$x_i, y_i$ 是常数，$\theta$ 是变量）：
 

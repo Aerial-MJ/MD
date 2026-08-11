@@ -1728,7 +1728,7 @@ def dpo_loss(policy, ref_model, chosen_ids, rejected_ids, beta=0.1):
 
 #### 4.3.4 从统一的视角看 policy-gradient 算法
 
-> 参见：[GRPO与PPO算法详解 · 六、GRPO 为什么能省掉 Critic 网络？](../深度学习/GRPO与PPO算法详解.md#六grpo-为什么能省掉-critic-网络)、[七、KL 散度惩罚项详解](../深度学习/GRPO与PPO算法详解.md#七kl-散度惩罚项详解)。
+> 参见：[GRPO与PPO算法详解 · 六、GRPO 为什么能省掉 Critic 网络？](../深度学习/GRPO与PPO算法详解.md#六grpo-为什么能省掉-critic-网络)、[七、DAPO：对 GRPO 的四点改进](../深度学习/GRPO与PPO算法详解.md#七dapo对-grpo-的四点改进)、[八、KL 散度惩罚项详解](../深度学习/GRPO与PPO算法详解.md#八kl-散度惩罚项详解)。
 
 从 REINFORCE 到 PPO，再到 GRPO、DAPO、GSPO、CISPO，各算法都可以放回同一条处理链：
 
@@ -2057,7 +2057,7 @@ SFT 阶段还需要额外的**对话质量清洗**：过滤掉回答过短、拒
 
 ### 4.5 训练工程细节
 
-前面各节的训练循环都简化为"forward → backward → step"，本节补充让训练真正跑得动、跑得稳的工程手段：混合精度、学习率调度和分布式训练。梯度裁剪、梯度累积的公式与代码见 [GRPO与PPO算法详解 · 八、梯度下降与反向传播](../深度学习/GRPO与PPO算法详解.md#八梯度下降与反向传播)，此处不再重复，只补充分布式与调度部分。
+前面各节的训练循环都简化为"forward → backward → step"，本节补充让训练真正跑得动、跑得稳的工程手段：混合精度、学习率调度和分布式训练。梯度裁剪、梯度累积的公式与代码见 [GRPO与PPO算法详解 · 九、梯度下降与反向传播](../深度学习/GRPO与PPO算法详解.md#九梯度下降与反向传播)，此处不再重复，只补充分布式与调度部分。
 
 #### 4.5.1 混合精度训练
 

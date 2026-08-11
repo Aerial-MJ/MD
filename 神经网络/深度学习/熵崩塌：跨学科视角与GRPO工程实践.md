@@ -1,6 +1,6 @@
 # 熵崩塌（Entropy Collapse）：跨学科总览
 
-> 关联笔记：GRPO/PPO 公式与 KL、entropy 正则项的推导见 [GRPO与PPO算法详解 · 七、KL 散度惩罚项详解](GRPO与PPO算法详解.md#七kl-散度惩罚项详解)；熵在 verl 训练日志中的实际表现（entropy / entropy_loss 曲线、超参排查表）见 [verl · 6.7 Entropy（熵）](../神经网络代码/verl.md#67-entropy熵) 与 [6.8 Entropy Loss（熵损失）](../神经网络代码/verl.md#68-entropy-loss熵损失)；PPO 正则项公式位置见 [MiniMind从0到1构建大模型 · KL、entropy 与 PPO 完整目标](../神经网络代码/MiniMind从0到1构建大模型.md#43-强化学习)。
+> 关联笔记：GRPO/PPO 公式与 KL、entropy 正则项的推导见 [GRPO与PPO算法详解 · 八、KL 散度惩罚项详解](GRPO与PPO算法详解.md#八kl-散度惩罚项详解)；熵在 verl 训练日志中的实际表现（entropy / entropy_loss 曲线、超参排查表）见 [verl · 6.7 Entropy（熵）](../神经网络代码/verl.md#67-entropy熵) 与 [6.8 Entropy Loss（熵损失）](../神经网络代码/verl.md#68-entropy-loss熵损失)；PPO 正则项公式位置见 [MiniMind从0到1构建大模型 · KL、entropy 与 PPO 完整目标](../神经网络代码/MiniMind从0到1构建大模型.md#43-强化学习)。
 
 熵崩塌是 RL 训练（尤其 GRPO/PPO 这类 on-policy RL for LLM）里最让人头疼的现象之一：策略的输出分布越来越"尖锐"，模型变得极度自信、几乎不再探索，token 级别的采样熵一路下降并"崩掉"，之后模型输出高度雷同、多样性消失，甚至性能不增反降。要理解它，我们从物理、化学、信息论、统计力学一路串到 SFT/GRPO，会发现这些领域讲的其实是同一个数学骨架在不同场景下的具现。
 
